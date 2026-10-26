@@ -40,42 +40,71 @@ export type SerializedProduct = Omit<
   vendor?: { id: string; name: string | null } | null;
   reviews?: { rating: number }[];
   _count?: { reviews?: number };
+  averageRating: number;
+  reviewCount: number;
 };
+
+/**
+ * Prisma Decimal veya benzeri sayısal değerleri güvenli şekilde JavaScript number tipine dönüştürür.
+ * null veya undefined ise null döner.
+ */
+export function toNumber(val: unknown): number | null {
+  if (val === null || val === undefined) return null;
+  if (typeof val === "number") return isNaN(val) ? null : val;
+  if (typeof (val as { toNumber?: () => number }).toNumber === "function") {
+    return (val as { toNumber: () => number }).toNumber();
+  }
+  const parsed = Number(val);
+  return isNaN(parsed) ? null : parsed;
+}
 
 /**
  * Prisma Product nesnesini React Client Component'lerine aktarmak üzere
  * tüm Decimal alanlarını Number'a dönüştürerek serileştirir.
+ * Bu sayede "Decimal objects are not supported" hatası tamamen önlenir.
  */
-export function serializeProduct(product: ProductWithDetails): SerializedProduct {
+export function serializeProduct(
+  product: ProductWithDetails | SerializedProduct | any
+): SerializedProduct {
+  if (!product) return product;
+
+  const salePrice = toNumber(product.salePrice);
+
+  const rentalPricing: SerializedRentalPricing | null = product.rentalPricing
+    ? {
+        ...product.rentalPricing,
+        dailyPrice: toNumber(product.rentalPricing.dailyPrice) ?? 0,
+        weeklyPrice: toNumber(product.rentalPricing.weeklyPrice),
+        monthlyPrice: toNumber(product.rentalPricing.monthlyPrice),
+        depositAmount: toNumber(product.rentalPricing.depositAmount) ?? 0,
+      }
+    : null;
+
+  const averageRating = toNumber(product.averageRating) ?? 0;
+  const reviewCount = product.reviewCount || 0;
+
   return {
     ...product,
-    salePrice: product.salePrice !== null && product.salePrice !== undefined
-      ? Number(product.salePrice)
-      : null,
+    salePrice,
+    rentalPricing,
+    averageRating,
+    reviewCount,
+    category: product.category || null,
     subCategory: product.subCategory || null,
+    inventory: product.inventory || null,
     vendor: product.vendor || null,
     reviews: product.reviews || [],
     _count: product._count,
-    averageRating: product.averageRating !== null && product.averageRating !== undefined
-      ? Number(product.averageRating)
-      : 0,
-    reviewCount: product.reviewCount || 0,
-    rentalPricing: product.rentalPricing
-      ? {
-          ...product.rentalPricing,
-          dailyPrice: Number(product.rentalPricing.dailyPrice),
-          weeklyPrice:
-            product.rentalPricing.weeklyPrice !== null && product.rentalPricing.weeklyPrice !== undefined
-              ? Number(product.rentalPricing.weeklyPrice)
-              : null,
-          monthlyPrice:
-            product.rentalPricing.monthlyPrice !== null && product.rentalPricing.monthlyPrice !== undefined
-              ? Number(product.rentalPricing.monthlyPrice)
-              : null,
-          depositAmount: Number(product.rentalPricing.depositAmount),
-        }
-      : null,
   };
+}
+
+/**
+ * Dizi halindeki ürünleri serileştirir
+ */
+export function serializeProducts(
+  products: (ProductWithDetails | SerializedProduct | any)[]
+): SerializedProduct[] {
+  return products.map(serializeProduct);
 }
 
 /** Ürün listeleme için filtre parametreleri */
@@ -92,7 +121,7 @@ export interface ProductFilterParams {
 
 /** Ürün listesi sonucu (pagination ile) */
 export interface ProductListResult {
-  products: ProductWithDetails[];
+  products: SerializedProduct[];
   total: number;
   page: number;
   totalPages: number;

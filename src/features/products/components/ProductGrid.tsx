@@ -1,8 +1,8 @@
 import { ProductCard } from "./ProductCard";
-import type { ProductWithDetails } from "../types";
+import type { ProductWithDetails, SerializedProduct } from "../types";
 
 interface ProductGridProps {
-  products: ProductWithDetails[];
+  products: (ProductWithDetails | SerializedProduct)[];
 }
 
 export function ProductGrid({ products }: ProductGridProps) {

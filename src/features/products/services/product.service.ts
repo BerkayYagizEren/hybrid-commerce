@@ -1,5 +1,11 @@
 import prisma from "@/lib/prisma";
-import type { ProductFilterParams, ProductListResult, ProductWithDetails } from "../types";
+import {
+  serializeProduct,
+  type ProductFilterParams,
+  type ProductListResult,
+  type ProductWithDetails,
+  type SerializedProduct,
+} from "../types";
 
 /**
  * Ürün Servisi
@@ -81,8 +87,8 @@ export class ProductService {
       prisma.product.count({ where }),
     ]);
 
-    // Dinamik ortalama puan ve onaylanmış yorum miktarını hesapla
-    const products = rawProducts.map((p) => {
+    // Dinamik ortalama puan ve onaylanmış yorum miktarını hesapla ve Decimal alanları serileştir
+    const products: SerializedProduct[] = rawProducts.map((p) => {
       const reviewCount = p._count?.reviews ?? p.reviews?.length ?? p.reviewCount ?? 0;
       let averageRating = p.averageRating ? Number(p.averageRating) : 0;
 
@@ -91,15 +97,15 @@ export class ProductService {
         averageRating = Number((sum / p.reviews.length).toFixed(1));
       }
 
-      return {
+      return serializeProduct({
         ...p,
         averageRating,
         reviewCount,
-      };
+      });
     });
 
     return {
-      products: products as ProductWithDetails[],
+      products,
       total,
       page,
       totalPages: Math.ceil(total / limit),
@@ -107,9 +113,9 @@ export class ProductService {
   }
 
   /**
-   * Slug ile tekil ürün getir
+   * Slug ile tekil ürün getir (Decimal alanları serileştirilmiş)
    */
-  static async getBySlug(slug: string): Promise<ProductWithDetails | null> {
+  static async getBySlug(slug: string): Promise<SerializedProduct | null> {
     const p = await prisma.product.findUnique({
       where: { slug },
       include: {
@@ -141,17 +147,17 @@ export class ProductService {
       averageRating = Number((sum / p.reviews.length).toFixed(1));
     }
 
-    return {
+    return serializeProduct({
       ...p,
       averageRating,
       reviewCount,
-    } as ProductWithDetails;
+    });
   }
 
   /**
-   * ID ile tekil ürün getir
+   * ID ile tekil ürün getir (Decimal alanları serileştirilmiş)
    */
-  static async getById(id: string): Promise<ProductWithDetails | null> {
+  static async getById(id: string): Promise<SerializedProduct | null> {
     const p = await prisma.product.findUnique({
       where: { id },
       include: {
@@ -183,10 +189,10 @@ export class ProductService {
       averageRating = Number((sum / p.reviews.length).toFixed(1));
     }
 
-    return {
+    return serializeProduct({
       ...p,
       averageRating,
       reviewCount,
-    } as ProductWithDetails;
+    });
   }
 }

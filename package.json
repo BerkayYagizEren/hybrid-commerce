@@ -22,7 +22,8 @@
     "test:navbar": "tsx scripts/test-two-row-navbar-and-search.ts",
     "test:payment": "tsx scripts/test-payment-and-escrow.ts",
     "test:payment-scenarios": "tsx scripts/run-payment-flow-scenarios.ts",
-    "test:categories": "tsx scripts/test-category-mega-menu-and-vendor.ts"
+    "test:categories": "tsx scripts/test-category-mega-menu-and-vendor.ts",
+    "test:reviews": "tsx scripts/test-reviews-and-moderation.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",

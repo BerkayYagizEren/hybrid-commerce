@@ -1,4 +1,6 @@
 import { ProductDetail } from "@/features/products/components/ProductDetail";
+import { ProductReviewsSection } from "@/features/reviews/components/ProductReviewsSection";
+import { getProductReviews } from "@/features/reviews/actions/review.actions";
 import { ProductService } from "@/features/products/services/product.service";
 import { serializeProduct } from "@/features/products/types";
 import { notFound } from "next/navigation";
@@ -15,12 +17,22 @@ export default async function ProductPage({ params }: ProductPageProps) {
     notFound();
   }
 
+  // Değerlendirmeleri ve doğrulanmış alıcı durumunu çek
+  const reviewsData = await getProductReviews(rawProduct.id);
+
   // Prisma Decimal alanları Client Component sınırından önce Number'a dönüştürülüyor
   const product = serializeProduct(rawProduct);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <ProductDetail product={product} />
+
+      {/* Yorumlar ve Puanlama Bölümü */}
+      <ProductReviewsSection
+        productId={rawProduct.id}
+        productName={rawProduct.name}
+        data={reviewsData}
+      />
     </div>
   );
 }

@@ -73,6 +73,16 @@ export function ProductCard({ product }: ProductCardProps) {
           </p>
         )}
 
+        {product.reviewCount && product.reviewCount > 0 ? (
+          <div className="mt-1 flex items-center gap-1 text-xs">
+            <span className="text-amber-500 font-bold">★</span>
+            <span className="font-bold text-gray-800">
+              {Number(product.averageRating || 0).toFixed(1)}
+            </span>
+            <span className="text-gray-400 text-[11px]">({product.reviewCount})</span>
+          </div>
+        ) : null}
+
         <div className="mt-auto pt-3">
           {/* Satış Fiyatı */}
           {(product.type === "SALE" || product.type === "BOTH") && product.salePrice && (

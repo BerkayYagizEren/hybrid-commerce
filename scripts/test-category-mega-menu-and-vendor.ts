@@ -159,7 +159,7 @@ async function runCategoryAndMegaMenuTests() {
     );
 
     // Satıcı listesinde kategori adlarının döndüğünü doğrula
-    const vendorProducts = await getVendorProductsList(vendor!.id);
+    const vendorProducts = await getVendorProductsList();
     const listedVendorProduct = vendorProducts.find((p) => p.id === createdProductId);
     assert(
       listedVendorProduct?.categoryName === "Test Ana Kategori" &&

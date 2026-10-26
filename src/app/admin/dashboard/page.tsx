@@ -166,6 +166,13 @@ export default function AdminDashboardPage() {
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Link
+            href="/admin/reviews"
+            className="rounded-xl border border-amber-200 bg-amber-50/70 px-3.5 py-2 text-xs sm:text-sm font-bold text-amber-800 shadow-2xs hover:bg-amber-100 transition-colors flex items-center gap-1.5"
+          >
+            <span>⭐</span>
+            <span>Yorum Moderasyonu</span>
+          </Link>
+          <Link
             href="/admin/categories"
             className="rounded-xl border border-blue-200 bg-blue-50/70 px-3.5 py-2 text-xs sm:text-sm font-bold text-blue-700 shadow-2xs hover:bg-blue-100 transition-colors"
           >

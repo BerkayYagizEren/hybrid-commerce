@@ -28,6 +28,7 @@ model User {
   orders    Order[]
   rentals   Rental[]
   cart      Cart?
+  reviews   Review[]
 
   // Satıcı / Vendor ilişkileri (Vendor'ın listelediği ürünler)
   products  Product[]  @relation("VendorProducts")
@@ -76,6 +77,11 @@ model Product {
   orderItems   OrderItem[]
   rentals      Rental[]
   availability RentalAvailability[]
+
+  // Değerlendirmeler & Puanlama
+  averageRating Float?    @default(0) @map("average_rating")
+  reviewCount   Int       @default(0) @map("review_count")
+  reviews       Review[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -388,4 +394,41 @@ model EscrowTransaction {
   updatedAt     DateTime        @updatedAt @map("updated_at")
 
   @@map("escrow_transactions")
+}
+
+// ─────────────────────────────────────────────
+// Ürün Değerlendirme & Yorum (Reviews & Ratings)
+// ─────────────────────────────────────────────
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Review {
+  id             String       @id @default(cuid())
+  rating         Int          // 1 ile 5 arasında tamsayı
+  comment        String       @db.Text
+  status         ReviewStatus @default(PENDING)
+
+  userId         String       @map("user_id")
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  productId      String       @map("product_id")
+  product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Doğrulanmış müşteri (satın almış veya kiralamış)
+  isVerified     Boolean      @default(false) @map("is_verified")
+
+  // Moderasyon notu
+  moderationNote String?      @map("moderation_note")
+
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([userId, productId])
+  @@index([productId, status])
+  @@index([userId])
+  @@index([status])
+  @@map("reviews")
 }

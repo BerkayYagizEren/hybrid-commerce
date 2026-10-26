@@ -13,6 +13,13 @@ import {
 import { approveRentalReturn, getRentalReturnsList } from "@/features/rental/actions/rental.actions";
 import { getAllCategories } from "@/features/categories/actions/category.actions";
 import type { CategoryItem } from "@/features/categories/types";
+import {
+  getVendorReviews,
+  approveReview,
+  rejectReview,
+} from "@/features/reviews/actions/review.actions";
+import { StarRating } from "@/features/reviews/components/StarRating";
+import type { ReviewWithProductAndUser } from "@/features/reviews/types";
 
 interface VendorProduct {
   id: string;
@@ -51,11 +58,56 @@ interface RentalReturnItem {
 
 export default function VendorDashboardPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"INVENTORY" | "RETURNS">("INVENTORY");
+  const [activeTab, setActiveTab] = useState<"INVENTORY" | "RETURNS" | "REVIEWS">("INVENTORY");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<VendorProduct | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [processingReturnId, setProcessingReturnId] = useState<string | null>(null);
+
+  // Yorum Moderasyon State
+  const [vendorReviews, setVendorReviews] = useState<ReviewWithProductAndUser[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [reviewFilter, setReviewFilter] = useState<"ALL" | "PENDING" | "APPROVED" | "REJECTED">("ALL");
+
+  const loadVendorReviews = async () => {
+    setLoadingReviews(true);
+    try {
+      const data = await getVendorReviews(undefined, reviewFilter);
+      setVendorReviews(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "REVIEWS") {
+      loadVendorReviews();
+    }
+  }, [activeTab, reviewFilter]);
+
+  const handleApproveReview = async (reviewId: string) => {
+    const res = await approveReview(reviewId, "Satıcı tarafından onaylandı.");
+    if (res.success) {
+      alert("✅ Yorum onaylandı ve mağazanızda yayına alındı.");
+      loadVendorReviews();
+    } else {
+      alert(res.error || "Hata oluştu.");
+    }
+  };
+
+  const handleRejectReview = async (reviewId: string) => {
+    const reason = prompt("Reddetme gerekçesi belirtin:", "Uygunsuz içerik.");
+    if (reason === null) return;
+    const res = await rejectReview(reviewId, reason);
+    if (res.success) {
+      alert("❌ Yorum reddedildi.");
+      loadVendorReviews();
+    } else {
+      alert(res.error || "Hata oluştu.");
+    }
+  };
 
   // Hızlı Stok Güncelleme Modal State
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
@@ -671,6 +723,19 @@ export default function VendorDashboardPage() {
             </span>
           )}
         </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("REVIEWS")}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+            activeTab === "REVIEWS"
+              ? "bg-blue-600 text-white shadow-sm"
+              : "bg-blue-50 text-blue-900 hover:bg-blue-100"
+          }`}
+        >
+          <span>⭐</span>
+          <span>Yorum &amp; Puan Moderasyonu</span>
+        </button>
       </div>
 
       {/* ─────────────────────────────────────────────
@@ -948,6 +1013,148 @@ export default function VendorDashboardPage() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────
+          SEKME 3: MÜŞTERİ YORUMLARI & DEĞERLENDİRME MODERASYONU
+      ───────────────────────────────────────────── */}
+      {activeTab === "REVIEWS" && (
+        <div className="space-y-6 animate-in fade-in">
+          {/* Üst Filtre Barı */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(
+                [
+                  { label: "Tümü", value: "ALL" },
+                  { label: "⏳ Onay Bekleyenler", value: "PENDING" },
+                  { label: "✅ Onaylananlar", value: "APPROVED" },
+                  { label: "❌ Reddedilenler", value: "REJECTED" },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  onClick={() => setReviewFilter(tab.value)}
+                  className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition cursor-pointer ${
+                    reviewFilter === tab.value
+                      ? "bg-blue-600 text-white shadow-xs"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <span className="text-xs text-gray-500 font-semibold">
+              {vendorReviews.length} değerlendirme listeleniyor
+            </span>
+          </div>
+
+          {/* Yorumlar Listesi */}
+          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+            <div className="border-b border-gray-100 bg-gray-50/75 px-6 py-4">
+              <h3 className="text-base font-bold text-gray-900">Mağazanıza Gelen Müşteri Yorumları</h3>
+              <p className="text-xs text-gray-500">
+                Ürünlerinize yapılan değerlendirmeleri inceleyin, onaylayın veya uygunsuz olanları engelleyin
+              </p>
+            </div>
+
+            {loadingReviews ? (
+              <div className="py-16 text-center text-gray-400">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-200 border-t-blue-600 mb-3" />
+                <p className="text-xs font-semibold">Yorumlar yükleniyor...</p>
+              </div>
+            ) : vendorReviews.length > 0 ? (
+              <div className="divide-y divide-gray-100">
+                {vendorReviews.map((rev) => (
+                  <div
+                    key={rev.id}
+                    className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50/50 transition"
+                  >
+                    <div className="space-y-2 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {rev.status === "PENDING" && (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                            ⏳ Onay Bekliyor
+                          </span>
+                        )}
+                        {rev.status === "APPROVED" && (
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                            ✅ Yayında
+                          </span>
+                        )}
+                        {rev.status === "REJECTED" && (
+                          <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-800">
+                            ❌ Reddedildi
+                          </span>
+                        )}
+                        {rev.isVerified && (
+                          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200">
+                            ✓ Doğrulanmış Alıcı
+                          </span>
+                        )}
+                        <span className="text-[11px] text-gray-400">
+                          {formatDate(rev.createdAt.toString())}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/products/${rev.product.slug}`}
+                          className="font-bold text-xs text-gray-900 hover:text-blue-600 transition"
+                        >
+                          📦 {rev.product.name}
+                        </Link>
+                        <span className="text-gray-300">•</span>
+                        <span className="text-xs text-gray-500">
+                          {rev.user.name || rev.user.email}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <StarRating rating={rev.rating} size="sm" />
+                        <span className="text-xs font-bold text-amber-600">{rev.rating} / 5</span>
+                      </div>
+
+                      <p className="text-xs text-gray-800 bg-gray-50 p-3 rounded-xl border border-gray-100 leading-relaxed whitespace-pre-line">
+                        "{rev.comment}"
+                      </p>
+                    </div>
+
+                    {/* Moderasyon Aksiyonları */}
+                    <div className="flex sm:flex-col items-center sm:items-end gap-2 flex-shrink-0">
+                      {rev.status !== "APPROVED" && (
+                        <button
+                          type="button"
+                          onClick={() => handleApproveReview(rev.id)}
+                          className="rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition cursor-pointer"
+                        >
+                          ✅ Onayla
+                        </button>
+                      )}
+                      {rev.status !== "REJECTED" && (
+                        <button
+                          type="button"
+                          onClick={() => handleRejectReview(rev.id)}
+                          className="rounded-xl border border-rose-300 bg-rose-50 px-3.5 py-1.5 text-xs font-bold text-rose-800 hover:bg-rose-100 transition cursor-pointer"
+                        >
+                          ❌ Reddet
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-16 text-center text-gray-400">
+                <span className="text-4xl block mb-2">⭐</span>
+                <p className="text-sm font-bold text-gray-700">Ürünlerinize henüz yorum yapılmamış.</p>
+                <p className="text-xs mt-1">Gelen müşteri yorumları burada listelenecektir.</p>
+              </div>
+            )}
           </div>
         </div>
       )}

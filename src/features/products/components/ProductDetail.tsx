@@ -177,6 +177,25 @@ export function ProductDetail({ product }: ProductDetailProps) {
           {product.name}
         </h1>
 
+        {/* Yıldızlı Değerlendirme & Yorum Sayısı Rozeti */}
+        <div className="mt-2 flex items-center gap-2">
+          <div className="flex items-center gap-1 text-amber-500 text-sm">
+            <span>★</span>
+            <span className="font-bold text-gray-900">
+              {product.averageRating && product.averageRating > 0
+                ? Number(product.averageRating).toFixed(1)
+                : "0.0"}
+            </span>
+          </div>
+          <span className="text-gray-300">•</span>
+          <a
+            href="#reviews"
+            className="text-xs font-semibold text-blue-600 hover:underline"
+          >
+            {product.reviewCount || 0} Değerlendirme
+          </a>
+        </div>
+
         {(product.category || product.subCategory) && (
           <nav className="mt-2 flex items-center gap-1.5 text-xs text-gray-500 font-medium">
             <Link href="/products" className="hover:text-blue-600 transition">

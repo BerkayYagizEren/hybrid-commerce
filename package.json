@@ -25,7 +25,9 @@
     "test:categories": "tsx scripts/test-category-mega-menu-and-vendor.ts",
     "test:reviews": "tsx scripts/test-reviews-and-moderation.ts",
     "test:card": "tsx scripts/test-trendyol-product-card.ts",
-    "test:serialization": "tsx scripts/test-decimal-serialization.ts"
+    "test:serialization": "tsx scripts/test-decimal-serialization.ts",
+    "test:master": "tsx scripts/master-e2e-integration-suite.ts",
+    "test:all": "tsx scripts/master-e2e-integration-suite.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",

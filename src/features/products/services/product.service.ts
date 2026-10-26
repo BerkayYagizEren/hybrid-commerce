@@ -53,7 +53,7 @@ export class ProductService {
       if (maxPrice) where.salePrice.lte = maxPrice;
     }
 
-    const [products, total] = await Promise.all([
+    const [rawProducts, total] = await Promise.all([
       prisma.product.findMany({
         where,
         include: {
@@ -61,6 +61,18 @@ export class ProductService {
           subCategory: true,
           inventory: true,
           rentalPricing: true,
+          vendor: {
+            select: { id: true, name: true },
+          },
+          reviews: {
+            where: { status: "APPROVED" },
+            select: { rating: true },
+          },
+          _count: {
+            select: {
+              reviews: { where: { status: "APPROVED" } },
+            },
+          },
         },
         skip,
         take: limit,
@@ -68,6 +80,23 @@ export class ProductService {
       }),
       prisma.product.count({ where }),
     ]);
+
+    // Dinamik ortalama puan ve onaylanmış yorum miktarını hesapla
+    const products = rawProducts.map((p) => {
+      const reviewCount = p._count?.reviews ?? p.reviews?.length ?? p.reviewCount ?? 0;
+      let averageRating = p.averageRating ? Number(p.averageRating) : 0;
+
+      if (p.reviews && p.reviews.length > 0) {
+        const sum = p.reviews.reduce((acc, r) => acc + r.rating, 0);
+        averageRating = Number((sum / p.reviews.length).toFixed(1));
+      }
+
+      return {
+        ...p,
+        averageRating,
+        reviewCount,
+      };
+    });
 
     return {
       products: products as ProductWithDetails[],
@@ -81,29 +110,83 @@ export class ProductService {
    * Slug ile tekil ürün getir
    */
   static async getBySlug(slug: string): Promise<ProductWithDetails | null> {
-    return prisma.product.findUnique({
+    const p = await prisma.product.findUnique({
       where: { slug },
       include: {
         category: true,
         subCategory: true,
         inventory: true,
         rentalPricing: true,
+        vendor: {
+          select: { id: true, name: true },
+        },
+        reviews: {
+          where: { status: "APPROVED" },
+          select: { rating: true },
+        },
+        _count: {
+          select: {
+            reviews: { where: { status: "APPROVED" } },
+          },
+        },
       },
-    }) as Promise<ProductWithDetails | null>;
+    });
+
+    if (!p) return null;
+
+    const reviewCount = p._count?.reviews ?? p.reviews?.length ?? p.reviewCount ?? 0;
+    let averageRating = p.averageRating ? Number(p.averageRating) : 0;
+    if (p.reviews && p.reviews.length > 0) {
+      const sum = p.reviews.reduce((acc, r) => acc + r.rating, 0);
+      averageRating = Number((sum / p.reviews.length).toFixed(1));
+    }
+
+    return {
+      ...p,
+      averageRating,
+      reviewCount,
+    } as ProductWithDetails;
   }
 
   /**
    * ID ile tekil ürün getir
    */
   static async getById(id: string): Promise<ProductWithDetails | null> {
-    return prisma.product.findUnique({
+    const p = await prisma.product.findUnique({
       where: { id },
       include: {
         category: true,
         subCategory: true,
         inventory: true,
         rentalPricing: true,
+        vendor: {
+          select: { id: true, name: true },
+        },
+        reviews: {
+          where: { status: "APPROVED" },
+          select: { rating: true },
+        },
+        _count: {
+          select: {
+            reviews: { where: { status: "APPROVED" } },
+          },
+        },
       },
-    }) as Promise<ProductWithDetails | null>;
+    });
+
+    if (!p) return null;
+
+    const reviewCount = p._count?.reviews ?? p.reviews?.length ?? p.reviewCount ?? 0;
+    let averageRating = p.averageRating ? Number(p.averageRating) : 0;
+    if (p.reviews && p.reviews.length > 0) {
+      const sum = p.reviews.reduce((acc, r) => acc + r.rating, 0);
+      averageRating = Number((sum / p.reviews.length).toFixed(1));
+    }
+
+    return {
+      ...p,
+      averageRating,
+      reviewCount,
+    } as ProductWithDetails;
   }
 }

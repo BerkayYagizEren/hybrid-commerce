@@ -79,8 +79,10 @@ async function runReviewTests() {
     );
 
     assert(
-      !blockedReviewRes.success &&
-        blockedReviewRes.error?.toLowerCase().includes("satın almış veya kiralamış"),
+      Boolean(
+        !blockedReviewRes.success &&
+          blockedReviewRes.error?.toLowerCase().includes("satın almış veya kiralamış")
+      ),
       `Satın almamış müşterinin yorum girişimi güvenlik kontrolüne takıldı: "${blockedReviewRes.error}"`
     );
 
@@ -272,7 +274,9 @@ async function runReviewTests() {
     // 5.1 Misafir /admin/reviews erişimi -> 307 to /login
     const guestRes = await fetch("http://localhost:3000/admin/reviews", { redirect: "manual" });
     assert(
-      guestRes.status === 307 && guestRes.headers.get("location")?.includes("/login"),
+      Boolean(
+        guestRes.status === 307 && guestRes.headers.get("location")?.includes("/login")
+      ),
       `Misafir /admin/reviews erişimi engellendi ve /login sayfasına yönlendirildi (HTTP ${guestRes.status})`
     );
 

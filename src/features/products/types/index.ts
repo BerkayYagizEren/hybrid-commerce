@@ -6,6 +6,9 @@ export type ProductWithDetails = Product & {
   subCategory?: Category | null;
   inventory: Inventory | null;
   rentalPricing: RentalPricing | null;
+  vendor?: { id: string; name: string | null } | null;
+  reviews?: { rating: number }[];
+  _count?: { reviews?: number };
 };
 
 /**
@@ -34,6 +37,9 @@ export type SerializedProduct = Omit<
   subCategory?: Category | null;
   inventory: Inventory | null;
   rentalPricing: SerializedRentalPricing | null;
+  vendor?: { id: string; name: string | null } | null;
+  reviews?: { rating: number }[];
+  _count?: { reviews?: number };
 };
 
 /**
@@ -47,6 +53,13 @@ export function serializeProduct(product: ProductWithDetails): SerializedProduct
       ? Number(product.salePrice)
       : null,
     subCategory: product.subCategory || null,
+    vendor: product.vendor || null,
+    reviews: product.reviews || [],
+    _count: product._count,
+    averageRating: product.averageRating !== null && product.averageRating !== undefined
+      ? Number(product.averageRating)
+      : 0,
+    reviewCount: product.reviewCount || 0,
     rentalPricing: product.rentalPricing
       ? {
           ...product.rentalPricing,

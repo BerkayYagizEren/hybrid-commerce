@@ -104,7 +104,11 @@ export default function HomePage() {
             Satılık ve kiralık tüm ürünleri tek bir katalogda bulun.
           </p>
           <Link href="/products" className="mt-6 inline-block">
-            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
+            <Button
+              size="lg"
+              variant="outline"
+              className="border-gray-600 bg-transparent text-white hover:bg-gray-800 hover:border-gray-400 hover:text-white active:bg-gray-700 transition-all duration-200 shadow-sm"
+            >
               Ürünlere Göz At →
             </Button>
           </Link>

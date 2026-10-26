@@ -24,7 +24,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
               variant === "sale",
             "bg-gray-100 text-gray-900 hover:bg-gray-200 focus-visible:ring-gray-500":
               variant === "secondary",
-            "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus-visible:ring-gray-500":
+            "border border-gray-300 bg-transparent text-gray-700 hover:bg-gray-50 focus-visible:ring-gray-500":
               variant === "outline",
             "bg-transparent text-gray-700 hover:bg-gray-100 focus-visible:ring-gray-500":
               variant === "ghost",

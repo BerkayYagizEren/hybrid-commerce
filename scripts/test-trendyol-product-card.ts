@@ -74,22 +74,19 @@ async function runTrendyolProductCardTests() {
 
     const cardContent = fs.readFileSync(mainCardPath, "utf-8");
 
-    // 2.1 Yıldız ve puan elementleri
-    assert(cardContent.includes("MiniStars"), "5'li sarı yıldız ikon grubu (MiniStars) kart bileşenine dahil edildi");
-    assert(cardContent.includes("rating.toFixed(1)"), "Ortalama puan formatlanmış şekilde (örn: 4.8) gösteriliyor");
+    // 2.1 Yıldız ve puan elementleri (Gerekli temel alanlar)
+    assert(cardContent.includes("MiniStars"), "5'li sarı yıldız ikon grubu (MiniStars) kart bileşeninde mevcut");
+    assert(cardContent.includes("rating.toFixed(1)"), "Ortalama puan formatlanmış şekilde (örn: 4.1 / 4.8) gösteriliyor");
     assert(cardContent.includes("({reviewCount})"), "Toplam yorum sayısı parantez içinde (örn: (11)) gösteriliyor");
-    assert(cardContent.includes("Henüz değerlendirilmedi"), "Yorumsuz ürünler için 'Henüz değerlendirilmedi' şık alternatifi mevcut");
+    assert(cardContent.includes("Henüz değerlendirilmedi"), "Yorumsuz ürünler için zarif 'Henüz değerlendirilmedi' alternatifi mevcut");
+    assert(cardContent.includes("product.name"), "Ürün başlığı kartta mevcut");
+    assert(cardContent.includes("formatCurrency"), "Ürün fiyatı kartta gösteriliyor");
 
-    // 2.2 Trendyol Rozetleri
-    assert(cardContent.includes("Çok Al Az Öde"), "Trendyol 'Çok Al Az Öde' rozeti kartta yer alıyor");
-    assert(cardContent.includes("Hızlı Teslimat"), "Trendyol '⚡ Hızlı Teslimat' rozeti kartta yer alıyor");
-    assert(cardContent.includes("Çok Satan"), "Trendyol '🔥 Çok Satan' rozeti kartta yer alıyor");
-
-    // 2.3 Favori Kalp Butonu
-    assert(cardContent.includes("isFavorite") && cardContent.includes("handleFavoriteClick"), "Görsel üzerinde interaktif Trendyol favori kalp butonu mevcut");
-
-    // 2.4 Satıcı Bilgisi
-    assert(cardContent.includes("product.vendor"), "Satıcı / Mağaza adı ('Kamp Dünyası' vb.) kartta gösteriliyor");
+    // 2.2 Kaldırılan Rozetlerin Temizlik Doğrulaması (Kullanıcı İsteği: Sadeleştirme)
+    assert(!cardContent.includes("Çok Al Az Öde"), "'Çok Al Az Öde' pazarlama rozeti karttan başarıyla kaldırıldı");
+    assert(!cardContent.includes("isFavorite"), "Favori kalp butonu ve state'i karttan tamamen temizlendi");
+    assert(!cardContent.includes("showBadges"), "Gereksiz showBadges prop'u temizlendi");
+    assert(!cardContent.includes("Çok Satan"), "'Çok Satan' rozeti temizlendi");
 
     console.log("\n-------------------------------------------------------------------------------");
 

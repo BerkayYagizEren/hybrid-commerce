@@ -1,0 +1,29 @@
+import { cookies } from "next/headers";
+import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/auth-token";
+import { CartService } from "@/features/cart/services/cart.service";
+import { CheckoutClient } from "./CheckoutClient";
+import prisma from "@/lib/prisma";
+
+export default async function CheckoutPage() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  const sessionUser = await verifySessionToken(token);
+  const sessionId = cookieStore.get("session_id")?.value ?? "demo-session";
+
+  let cart = sessionUser?.id
+    ? await prisma.cart.findFirst({ where: { userId: sessionUser.id } })
+    : null;
+
+  if (!cart) {
+    cart = await CartService.getOrCreateCart(undefined, sessionId);
+  }
+
+  let summary = null;
+  try {
+    summary = await CartService.getSummary(cart.id);
+  } catch {
+    summary = null;
+  }
+
+  return <CheckoutClient initialSummary={summary} />;
+}

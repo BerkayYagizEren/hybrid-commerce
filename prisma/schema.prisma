@@ -1,0 +1,391 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// Kullanıcı & Yetkilendirme
+// ─────────────────────────────────────────────
+enum UserRole {
+  CUSTOMER
+  VENDOR
+  ADMIN
+}
+
+model User {
+  id        String     @id @default(cuid())
+  email     String     @unique
+  name      String?
+  password  String
+  role      UserRole   @default(CUSTOMER)
+  roles     UserRole[] @default([CUSTOMER])
+
+  // Müşteri ilişkileri
+  orders    Order[]
+  rentals   Rental[]
+  cart      Cart?
+
+  // Satıcı / Vendor ilişkileri (Vendor'ın listelediği ürünler)
+  products  Product[]  @relation("VendorProducts")
+
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  @@index([role])
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// Ürün Yönetimi
+// ─────────────────────────────────────────────
+enum ProductType {
+  SALE
+  RENTAL
+  BOTH
+}
+
+model Product {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String      @unique
+  description String?     @db.Text
+  images      String[]
+  type        ProductType
+  salePrice   Decimal?    @map("sale_price") @db.Decimal(10, 2)
+  active      Boolean     @default(true)
+
+  // Ana Kategori ve Alt Kategori İlişkileri
+  categoryId    String?   @map("category_id")
+  category      Category? @relation("CategoryProducts", fields: [categoryId], references: [id], onDelete: SetNull)
+
+  subCategoryId String?   @map("sub_category_id")
+  subCategory   Category? @relation("SubCategoryProducts", fields: [subCategoryId], references: [id], onDelete: SetNull)
+
+  // Satıcı / Mağaza ilişkisi (Marketplace / Multi-Vendor desteği)
+  vendorId   String?   @map("vendor_id")
+  vendor     User?     @relation("VendorProducts", fields: [vendorId], references: [id], onDelete: SetNull)
+
+  inventory     Inventory?
+  rentalPricing RentalPricing?
+
+  cartItems    CartItem[]
+  orderItems   OrderItem[]
+  rentals      Rental[]
+  availability RentalAvailability[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([type])
+  @@index([slug])
+  @@index([vendorId])
+  @@index([categoryId])
+  @@index([subCategoryId])
+  @@map("products")
+}
+
+model Category {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  description String?
+
+  // Self-Relation (Kendi Kendine İlişki): Ana ve Alt Kategoriler
+  parentId    String?    @map("parent_id")
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Category[] @relation("CategoryHierarchy")
+
+  // Ürün Eşleştirmeleri
+  products    Product[]  @relation("CategoryProducts")
+  subProducts Product[]  @relation("SubCategoryProducts")
+
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @default(now()) @updatedAt @map("updated_at")
+
+  @@index([parentId])
+  @@map("categories")
+}
+
+// ─────────────────────────────────────────────
+// Stok ve Envanter
+// ─────────────────────────────────────────────
+model Inventory {
+  id String @id @default(cuid())
+
+  productId String  @unique @map("product_id")
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Satış stoku
+  totalStock    Int @default(0) @map("total_stock")
+  reservedStock Int @default(0) @map("reserved_stock")
+
+  // Kiralama için mevcut birim sayısı
+  rentalQuantity Int @default(0) @map("rental_quantity")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("inventories")
+}
+
+// ─────────────────────────────────────────────
+// Kiralama Fiyatlandırma
+// ─────────────────────────────────────────────
+model RentalPricing {
+  id String @id @default(cuid())
+
+  productId String  @unique @map("product_id")
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  dailyPrice    Decimal  @map("daily_price") @db.Decimal(10, 2)
+  weeklyPrice   Decimal? @map("weekly_price") @db.Decimal(10, 2)
+  monthlyPrice  Decimal? @map("monthly_price") @db.Decimal(10, 2)
+  depositAmount Decimal  @default(0) @map("deposit_amount") @db.Decimal(10, 2)
+  minDays       Int      @default(1) @map("min_days")
+  maxDays       Int      @default(90) @map("max_days")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("rental_pricings")
+}
+
+// ─────────────────────────────────────────────
+// Kiralama Müsaitlik Kilitleme
+// (Louez / Sharetribe tarzı date-range blocking)
+// ─────────────────────────────────────────────
+model RentalAvailability {
+  id String @id @default(cuid())
+
+  productId String  @map("product_id")
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+
+  rentalId String? @map("rental_id")
+  rental   Rental? @relation(fields: [rentalId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([productId, startDate, endDate])
+  @@map("rental_availabilities")
+}
+
+// ─────────────────────────────────────────────
+// Sepet (Hibrit: Satış + Kiralama)
+// ─────────────────────────────────────────────
+model Cart {
+  id String @id @default(cuid())
+
+  userId    String? @unique @map("user_id")
+  user      User?   @relation(fields: [userId], references: [id])
+  sessionId String? @unique @map("session_id")
+
+  items CartItem[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("carts")
+}
+
+enum CartItemType {
+  SALE
+  RENTAL
+}
+
+model CartItem {
+  id String @id @default(cuid())
+
+  cartId String @map("cart_id")
+  cart   Cart   @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  productId String  @map("product_id")
+  product   Product @relation(fields: [productId], references: [id])
+
+  type     CartItemType
+  quantity Int          @default(1)
+
+  // Kiralama kalemleri için tarih aralığı
+  rentalStart DateTime? @map("rental_start")
+  rentalEnd   DateTime? @map("rental_end")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("cart_items")
+}
+
+// ─────────────────────────────────────────────
+// Sipariş
+// ─────────────────────────────────────────────
+enum OrderStatus {
+  PENDING
+  PAID
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  FAILED
+  REFUNDED
+}
+
+model Order {
+  id String @id @default(cuid())
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
+
+  items       OrderItem[]
+  payments    Payment[]
+  totalAmount Decimal     @map("total_amount") @db.Decimal(10, 2)
+  status      OrderStatus @default(PENDING)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("orders")
+}
+
+enum OrderItemType {
+  SALE
+  RENTAL
+}
+
+model OrderItem {
+  id String @id @default(cuid())
+
+  orderId String @map("order_id")
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId String  @map("product_id")
+  product   Product @relation(fields: [productId], references: [id])
+
+  type       OrderItemType
+  quantity   Int           @default(1)
+  unitPrice  Decimal       @map("unit_price") @db.Decimal(10, 2)
+  totalPrice Decimal       @map("total_price") @db.Decimal(10, 2)
+
+  // Snapshot alanları (Sipariş anındaki ürün adı, görseli ve fiyatı - ürün sonradan değişse bile sipariş tutarlılığı korunur)
+  productName     String?  @map("product_name")
+  productImage    String?  @map("product_image")
+  priceAtPurchase Decimal? @map("price_at_purchase") @db.Decimal(10, 2)
+
+  // Kiralama referansı
+  rentalId String? @unique @map("rental_id")
+  rental   Rental? @relation(fields: [rentalId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("order_items")
+}
+
+// ─────────────────────────────────────────────
+// Kiralama Kayıtları
+// ─────────────────────────────────────────────
+enum RentalStatus {
+  RESERVED
+  ACTIVE
+  RETURN_REQUESTED
+  RETURNED
+  OVERDUE
+  CANCELLED
+}
+
+model Rental {
+  id String @id @default(cuid())
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
+
+  productId String  @map("product_id")
+  product   Product @relation(fields: [productId], references: [id])
+
+  orderItem OrderItem?
+  escrow    EscrowTransaction?
+
+  startDate     DateTime @map("start_date")
+  endDate       DateTime @map("end_date")
+  dailyRate     Decimal  @map("daily_rate") @db.Decimal(10, 2)
+  totalPrice    Decimal  @map("total_price") @db.Decimal(10, 2)
+  depositAmount Decimal  @default(0) @map("deposit_amount") @db.Decimal(10, 2)
+
+  status RentalStatus @default(RESERVED)
+
+  availability RentalAvailability[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("rentals")
+}
+
+// ─────────────────────────────────────────────
+// Ödeme ve Depozito / Escrow
+// ─────────────────────────────────────────────
+enum PaymentProvider {
+  STRIPE
+  IYZICO
+  SANDBOX
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum EscrowStatus {
+  HELD
+  RELEASED
+  CAPTURED
+  FAILED
+}
+
+model Payment {
+  id            String          @id @default(cuid())
+  orderId       String          @map("order_id")
+  order         Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount        Decimal         @db.Decimal(10, 2)
+  currency      String          @default("TRY")
+  provider      PaymentProvider @default(STRIPE)
+  status        PaymentStatus   @default(PENDING)
+  transactionId String?         @map("transaction_id")
+  cardLast4     String?         @map("card_last4")
+  cardBrand     String?         @map("card_brand")
+  errorMessage  String?         @map("error_message")
+
+  escrows       EscrowTransaction[]
+
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  @@map("payments")
+}
+
+model EscrowTransaction {
+  id            String          @id @default(cuid())
+  paymentId     String?         @map("payment_id")
+  payment       Payment?        @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  rentalId      String          @unique @map("rental_id")
+  rental        Rental          @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  depositAmount Decimal         @map("deposit_amount") @db.Decimal(10, 2)
+  holdId        String?         @map("hold_id")
+  status        EscrowStatus    @default(HELD)
+  releasedAt    DateTime?       @map("released_at")
+  releaseTxId   String?         @map("release_tx_id")
+
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  @@map("escrow_transactions")
+}

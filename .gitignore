@@ -1,0 +1,33 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# Next.js build output
+/.next/
+/out/
+/build
+
+# Environment files (Kişisel şifre ve local bağlantılar git'e gitmesin)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Archives
+*.zip
+*.tar.gz
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# TypeScript cache
+*.tsbuildinfo

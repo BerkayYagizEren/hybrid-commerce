@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signupAction } from "@/features/auth/actions/auth.actions";
 import { useRole } from "@/shared/providers/RoleContext";
+import { notifyAuthStateChange } from "@/shared/utils/auth-events";
 
 function SignupForm() {
   const router = useRouter();
@@ -44,6 +45,7 @@ function SignupForm() {
       if (res.user?.role) {
         setRole(res.user.role);
       }
+      notifyAuthStateChange("LOGIN", res.user);
 
       // Dinamik yönlendirme
       const target = res.redirectUrl || (accountType === "VENDOR" ? "/vendor/dashboard" : "/orders");

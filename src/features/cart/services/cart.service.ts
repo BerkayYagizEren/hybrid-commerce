@@ -43,7 +43,7 @@ export class CartService {
     if (userId && sessionId) {
       try {
         const guestCart = await prisma.cart.findFirst({
-          where: { sessionId, NOT: { userId } },
+          where: { sessionId, userId: null },
           include: { items: true },
         });
 

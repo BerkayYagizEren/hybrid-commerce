@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useRouter } from "next/navigation";
 import { logoutAction, demoLoginAction } from "@/features/auth/actions/auth.actions";
 import type { SessionUser } from "@/lib/auth-token";
+import { notifyAuthStateChange, purgeLocalAuthStorage } from "@/shared/utils/auth-events";
 
 export type UserRoleType = "CUSTOMER" | "VENDOR" | "ADMIN";
 
@@ -74,6 +75,7 @@ export function RoleProvider({
         setUser(res.user);
         setRoleState(res.user.role);
         localStorage.setItem("hybrid_commerce_role", res.user.role);
+        notifyAuthStateChange("ACCOUNT_SWITCH", res.user);
         if (res.redirectUrl) {
           router.push(res.redirectUrl);
           router.refresh();
@@ -95,7 +97,9 @@ export function RoleProvider({
         localStorage.removeItem("guest_favorites");
         localStorage.removeItem("hybrid_favorites");
         localStorage.removeItem("hybrid_favorites_cache");
+        purgeLocalAuthStorage();
       }
+      notifyAuthStateChange("LOGOUT");
       router.push("/");
       router.refresh();
     } finally {

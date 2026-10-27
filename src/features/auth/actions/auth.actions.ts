@@ -162,6 +162,11 @@ export async function loginAction(data: {
 
     await setSessionCookie(sessionUser);
 
+    try {
+      const cookieStore = await cookies();
+      cookieStore.delete("session_id");
+    } catch {}
+
     const redirectUrl = getRedirectUrlForRole(user.role, data.redirect);
 
     try {
@@ -208,6 +213,12 @@ export async function demoLoginAction(role: "ADMIN" | "VENDOR" | "CUSTOMER", red
     };
 
     await setSessionCookie(sessionUser);
+
+    try {
+      const cookieStore = await cookies();
+      cookieStore.delete("session_id");
+    } catch {}
+
     const redirectUrl = getRedirectUrlForRole(user.role, redirect);
 
     try {
@@ -275,6 +286,12 @@ export async function signupAction(data: {
     };
 
     await setSessionCookie(sessionUser);
+
+    try {
+      const cookieStore = await cookies();
+      cookieStore.delete("session_id");
+    } catch {}
+
     const redirectUrl = getRedirectUrlForRole(newUser.role, data.redirect);
 
     try {
@@ -301,6 +318,7 @@ export async function logoutAction(): Promise<{ success: boolean; redirectUrl: s
     try {
       const cookieStore = await cookies();
       cookieStore.delete(SESSION_COOKIE_NAME);
+      cookieStore.delete("session_id");
     } catch (err: any) {
       if (!err?.message?.includes("outside a request scope")) {
         console.error("logout cookie error:", err);

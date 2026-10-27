@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loginAction, demoLoginAction } from "@/features/auth/actions/auth.actions";
 import { useRole } from "@/shared/providers/RoleContext";
+import { notifyAuthStateChange } from "@/shared/utils/auth-events";
 
 function LoginForm() {
   const router = useRouter();
@@ -41,6 +42,7 @@ function LoginForm() {
       if (res.user?.role) {
         setRole(res.user.role);
       }
+      notifyAuthStateChange("LOGIN", res.user);
 
       // Dinamik post-auth yönlendirmesi
       const target = res.redirectUrl || "/orders";
@@ -63,6 +65,7 @@ function LoginForm() {
 
       setSuccessMsg(`${role} girişi başarılı! Yönlendiriliyorsunuz...`);
       setRole(role);
+      notifyAuthStateChange("LOGIN", res.user);
 
       const target = res.redirectUrl || "/orders";
       router.push(target);

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import type { CartSummary, AddToCartRequest, CartItemDisplay } from "../types";
 import { useRole } from "@/shared/providers/RoleContext";
+import { AUTH_STATE_CHANGE_EVENT, CART_STORAGE_KEYS } from "@/shared/utils/auth-events";
 
 export interface CartContextType {
   summary: CartSummary | null;
@@ -19,6 +20,7 @@ export interface CartContextType {
   removeItem: (itemId: string) => Promise<void>;
   updateQuantity: (itemId: string, quantity: number) => Promise<void>;
   refresh: () => Promise<void>;
+  clearCart: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -31,6 +33,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cartId, setCartId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCartOpen, setIsCartOpen] = useState(false);
+
+  const clearCart = useCallback(() => {
+    setSummary(null);
+    setCartId(null);
+    if (typeof window !== "undefined") {
+      try {
+        CART_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
+      } catch {}
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
@@ -51,13 +63,24 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     refresh();
   }, [refresh]);
 
-  // Kullanıcı giriş/çıkış veya rol değiştirdiğinde sepeti otomatik tazele
+  // Kullanıcı giriş/çıkış veya hesap değiştirdiğinde sepeti ve yerel kalıntıları derhal temizle
   useEffect(() => {
     if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== user?.id) {
+      clearCart();
       refresh();
     }
     prevUserIdRef.current = user?.id;
-  }, [user?.id, refresh]);
+  }, [user?.id, clearCart, refresh]);
+
+  // Global Auth State Change dinleyicisi
+  useEffect(() => {
+    const handleAuthChange = () => {
+      clearCart();
+      refresh();
+    };
+    window.addEventListener(AUTH_STATE_CHANGE_EVENT, handleAuthChange);
+    return () => window.removeEventListener(AUTH_STATE_CHANGE_EVENT, handleAuthChange);
+  }, [clearCart, refresh]);
 
   const addItem = useCallback(
     async (request: AddToCartRequest): Promise<boolean> => {
@@ -185,6 +208,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         removeItem,
         updateQuantity,
         refresh,
+        clearCart,
       }}
     >
       {children}

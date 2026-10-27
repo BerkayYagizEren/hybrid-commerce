@@ -40,6 +40,7 @@
     "test:favorites-isolation": "tsx scripts/test-favorites-isolation.ts",
     "test:favorites-auth-sync": "tsx scripts/test-favorites-auth-sync.ts",
     "test:favorites-login-redirect": "tsx scripts/test-favorites-login-redirect.ts",
+    "test:sorting": "tsx scripts/test-product-sorting.ts",
     "test:master": "tsx scripts/master-e2e-integration-suite.ts",
     "test:all": "tsx scripts/master-e2e-integration-suite.ts"
   },

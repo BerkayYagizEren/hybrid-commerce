@@ -107,6 +107,17 @@ export function serializeProducts(
   return products.map(serializeProduct);
 }
 
+/** Ürün sıralama seçenekleri */
+export type ProductSortOption =
+  | "recommended"
+  | "price_asc"
+  | "price_desc"
+  | "newest"
+  | "best_seller"
+  | "most_rented"
+  | "most_favorited"
+  | "rating";
+
 /** Ürün listeleme için filtre parametreleri */
 export interface ProductFilterParams {
   type?: ProductType;
@@ -119,6 +130,7 @@ export interface ProductFilterParams {
   limit?: number;
   showcaseType?: ShowcaseType;
   showcaseTitle?: string;
+  sortBy?: ProductSortOption | string;
 }
 
 /** Ürün listesi sonucu (pagination ile) */

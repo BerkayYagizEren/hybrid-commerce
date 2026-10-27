@@ -5,6 +5,7 @@ import {
   type ProductListResult,
   type ProductWithDetails,
   type SerializedProduct,
+  type ProductSortOption,
 } from "../types";
 
 /**
@@ -13,7 +14,49 @@ import {
  */
 export class ProductService {
   /**
-   * Ürünleri filtrele ve listele (pagination destekli)
+   * sortBy parametresine göre Prisma dinamik orderBy koşullarını döner
+   * 
+   * recommended -> Önerilen Sıralama (updatedAt: 'desc')
+   * price_asc -> Fiyat: Düşükten Yükseğe (salePrice: 'asc')
+   * price_desc -> Fiyat: Yüksekten Düşüğe (salePrice: 'desc')
+   * newest -> En Yeniler (createdAt: 'desc')
+   * best_seller -> En Çok Satanlar (orderItems: { _count: 'desc' })
+   * most_rented -> En Çok Kiralananlar (rentals: { _count: 'desc' })
+   * most_favorited -> En Favoriler (favorites: { _count: 'desc' })
+   * rating -> En Yüksek Puanlılar (averageRating: 'desc')
+   */
+  static getOrderBy(sortBy?: ProductSortOption | string): any {
+    switch (sortBy) {
+      case "price_asc":
+      case "price-asc":
+        return { salePrice: { sort: "asc", nulls: "last" } };
+      case "price_desc":
+      case "price-desc":
+        return { salePrice: { sort: "desc", nulls: "last" } };
+      case "newest":
+        return { createdAt: "desc" };
+      case "best_seller":
+      case "bestseller":
+      case "best-seller":
+        return { orderItems: { _count: "desc" } };
+      case "most_rented":
+      case "most-rented":
+        return { rentals: { _count: "desc" } };
+      case "most_favorited":
+      case "most-favorited":
+      case "favorites":
+        return { favorites: { _count: "desc" } };
+      case "rating":
+      case "rating_desc":
+        return [{ averageRating: "desc" }, { reviewCount: "desc" }];
+      case "recommended":
+      default:
+        return { updatedAt: "desc" };
+    }
+  }
+
+  /**
+   * Ürünleri filtrele ve listele (pagination ve dinamik sıralama destekli)
    */
   static async list(params: ProductFilterParams = {}): Promise<ProductListResult> {
     const {
@@ -27,6 +70,7 @@ export class ProductService {
       limit = 12,
       showcaseType,
       showcaseTitle,
+      sortBy = "recommended",
     } = params;
     const skip = (page - 1) * limit;
 
@@ -79,6 +123,8 @@ export class ProductService {
       if (maxPrice) where.salePrice.lte = maxPrice;
     }
 
+    const orderBy = ProductService.getOrderBy(sortBy);
+
     const [rawProducts, total] = await Promise.all([
       prisma.product.findMany({
         where,
@@ -97,12 +143,15 @@ export class ProductService {
           _count: {
             select: {
               reviews: { where: { status: "APPROVED" } },
+              orderItems: true,
+              rentals: true,
+              favorites: true,
             },
           },
         },
         skip,
         take: limit,
-        orderBy: { createdAt: "desc" },
+        orderBy,
       }),
       prisma.product.count({ where }),
     ]);

@@ -9,7 +9,11 @@ export async function GET(request: NextRequest) {
     const result = await ProductService.list({
       type: searchParams.get("type") as ProductType | undefined,
       categorySlug: searchParams.get("category") ?? undefined,
-      search: searchParams.get("search") ?? undefined,
+      subCategorySlug: searchParams.get("subcategory") ?? undefined,
+      search: searchParams.get("search") ?? searchParams.get("q") ?? undefined,
+      sortBy: searchParams.get("sortBy") ?? searchParams.get("sort") ?? undefined,
+      minPrice: searchParams.get("minPrice") ? parseFloat(searchParams.get("minPrice")!) : undefined,
+      maxPrice: searchParams.get("maxPrice") ? parseFloat(searchParams.get("maxPrice")!) : undefined,
       page: searchParams.get("page") ? parseInt(searchParams.get("page")!) : 1,
       limit: searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : 12,
     });

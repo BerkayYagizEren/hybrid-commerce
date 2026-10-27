@@ -1,5 +1,6 @@
 import { ProductGrid } from "@/features/products/components/ProductGrid";
 import { ProductService } from "@/features/products/services/product.service";
+import { ProductSortSelect } from "@/features/products/components/ProductSortSelect";
 import { Badge } from "@/shared/components/ui/Badge";
 import Link from "next/link";
 import prisma from "@/lib/prisma";
@@ -15,6 +16,8 @@ interface ProductsPageProps {
     page?: string;
     showcase?: string;
     title?: string;
+    sortBy?: string;
+    sort?: string;
   }>;
 }
 
@@ -24,6 +27,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   const activeType = params.type;
   const showcaseType = params.showcase as ShowcaseType | undefined;
   const showcaseTitle = params.title;
+  const sortBy = params.sortBy || params.sort || "recommended";
 
   const showcaseInfoMap: Record<string, { title: string; subtitle: string; icon: string }> = {
     TREND: {
@@ -58,6 +62,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     page: params.page ? parseInt(params.page) : 1,
     showcaseType,
     showcaseTitle,
+    sortBy,
   });
 
   // Kategori bilgilerini çek (Breadcrumb ve başlık gösterimi için)
@@ -94,6 +99,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     if (searchQuery) p.set("q", searchQuery);
     if (params.showcase) p.set("showcase", params.showcase);
     if (params.title) p.set("title", params.title);
+    if (sortBy && sortBy !== "recommended") p.set("sortBy", sortBy);
 
     if (newParams.page && newParams.page !== "1") {
       p.set("page", newParams.page);
@@ -148,7 +154,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         </nav>
       )}
 
-      {/* Başlık ve Filtreler */}
+      {/* Başlık, Filtreler ve Sıralama (Sort Options) */}
       <div className="mb-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -181,8 +187,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
             </p>
           </div>
 
-          {/* Filtre Rozetleri */}
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Sağ Üst: Filtre Rozetleri & Sıralama Dropdown Menüsü */}
+          <div className="flex items-center gap-3 flex-wrap">
             {activeShowcase && (
               <div className="flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50/90 px-3 py-1.5 text-xs font-bold text-purple-900 shadow-2xs">
                 <span>{activeShowcase.icon} {activeShowcase.title} Vitrini</span>
@@ -211,6 +217,9 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                 </Link>
               </div>
             )}
+
+            {/* Ürün Listesi Sıralama Dropdown Menüsü (Sağ Üst) */}
+            <ProductSortSelect currentSort={sortBy} />
           </div>
         </div>
 

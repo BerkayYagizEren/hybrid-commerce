@@ -4,7 +4,14 @@ import { CartService } from "@/features/cart/services/cart.service";
 import { CheckoutClient } from "./CheckoutClient";
 import prisma from "@/lib/prisma";
 
-export default async function CheckoutPage() {
+export default async function CheckoutPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ coupon?: string }>;
+}) {
+  const resolvedParams = await searchParams;
+  const initialCoupon = resolvedParams?.coupon || "";
+
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   const sessionUser = await verifySessionToken(token);
@@ -25,5 +32,5 @@ export default async function CheckoutPage() {
     summary = null;
   }
 
-  return <CheckoutClient initialSummary={summary} />;
+  return <CheckoutClient initialSummary={summary} initialCouponCode={initialCoupon} />;
 }

@@ -39,8 +39,26 @@ export class CheckoutService {
         ? Math.round(((summary.saleSubtotal * b2bDiscountRate) / 100) * 100) / 100
         : 0;
 
-      const effectiveProductTotal = Math.max(0, summary.saleSubtotal - b2bDiscountAmount) + summary.rentalSubtotal;
-      const effectiveGrandTotal = Math.max(0, summary.grandTotal - b2bDiscountAmount);
+      // ── Kupon İndirimi Kontrolü ──
+      let couponDiscountAmount = 0;
+      if (request.couponCode) {
+        const coupon = await prisma.coupon.findUnique({
+          where: { code: request.couponCode.toUpperCase().trim() },
+        });
+        if (coupon && coupon.isActive && (!coupon.expiresAt || new Date() <= coupon.expiresAt)) {
+          const minBasket = Number(coupon.minBasketAmount || 0);
+          if (summary.grandTotal >= minBasket) {
+            const val = Number(coupon.discountValue);
+            couponDiscountAmount = coupon.discountType === "PERCENTAGE"
+              ? Math.round(((summary.saleSubtotal * val) / 100) * 100) / 100
+              : Math.min(summary.saleSubtotal, val);
+          }
+        }
+      }
+
+      const totalDiscounts = b2bDiscountAmount + couponDiscountAmount;
+      const effectiveProductTotal = Math.max(0, summary.saleSubtotal - totalDiscounts) + summary.rentalSubtotal;
+      const effectiveGrandTotal = Math.max(0, summary.grandTotal - totalDiscounts);
 
       if (dealer) {
         const creditLimit = Number(dealer.creditLimit || 0);

@@ -1,12 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/features/cart/hooks/useCart";
 import { formatCurrency } from "@/shared/utils/format";
 import { Button } from "@/shared/components/ui/Button";
 import { Badge } from "@/shared/components/ui/Badge";
+import { validateCouponAction, type CouponValidationResult } from "@/features/coupons/actions/coupon.actions";
 
 export function CartDrawer() {
   const router = useRouter();
@@ -20,11 +21,50 @@ export function CartDrawer() {
     updateQuantity,
   } = useCart();
 
+  const [couponCode, setCouponCode] = useState("");
+  const [couponResult, setCouponResult] = useState<CouponValidationResult | null>(null);
+  const [isApplying, setIsApplying] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
+
   if (!isCartOpen) return null;
+
+  const handleApplyCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!summary || !couponCode.trim()) return;
+
+    setIsApplying(true);
+    setCouponError(null);
+    try {
+      const res = await validateCouponAction(couponCode.trim(), summary.grandTotal);
+      if (res.valid) {
+        setCouponResult(res);
+        setCouponError(null);
+      } else {
+        setCouponResult(null);
+        setCouponError(res.error || "Kupon uygulanamadı.");
+      }
+    } catch {
+      setCouponError("Kupon kontrol edilirken hata oluştu.");
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponResult(null);
+    setCouponCode("");
+    setCouponError(null);
+  };
+
+  const discountAmount = couponResult?.valid ? couponResult.discountAmount : 0;
+  const finalGrandTotal = summary ? Math.max(0, summary.grandTotal - discountAmount) : 0;
 
   const handleNavigate = (path: string) => {
     setIsCartOpen(false);
-    router.push(path);
+    const targetUrl = couponResult?.valid
+      ? `${path}${path.includes("?") ? "&" : "?"}coupon=${encodeURIComponent(couponResult.code || "")}`
+      : path;
+    router.push(targetUrl);
   };
 
   return (
@@ -151,9 +191,59 @@ export function CartDrawer() {
             )}
           </div>
 
-          {/* Alt Kısım: Fiyat Özeti & Butonlar */}
+          {/* Alt Kısım: İndirim Kuponu & Fiyat Özeti & Butonlar */}
           {items.length > 0 && summary && (
             <div className="border-t border-gray-100 bg-white p-6 space-y-4">
+              {/* İndirim Kuponu Alanı */}
+              <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-bold text-gray-700 flex items-center gap-1">
+                    🏷️ İndirim Kuponu
+                  </span>
+                  {couponResult?.valid && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      className="text-xs text-red-500 hover:text-red-700 underline"
+                    >
+                      Kaldır
+                    </button>
+                  )}
+                </div>
+
+                {couponResult?.valid ? (
+                  <div className="flex items-center justify-between text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2">
+                    <span>✅ {couponResult.code}</span>
+                    <span>- {formatCurrency(discountAmount)}</span>
+                  </div>
+                ) : (
+                  <form onSubmit={handleApplyCoupon} className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Kupon Kodu (Örn: HOSGELDIN)"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      disabled={isApplying}
+                      className="flex-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-mono uppercase tracking-wider focus:border-blue-500 focus:outline-none"
+                    />
+                    <Button
+                      type="submit"
+                      disabled={isApplying || !couponCode.trim()}
+                      className="rounded-lg px-3 py-1.5 text-xs font-bold"
+                    >
+                      {isApplying ? "..." : "Uygula"}
+                    </Button>
+                  </form>
+                )}
+
+                {couponError && (
+                  <p className="mt-1.5 text-[11px] font-medium text-red-600">
+                    ⚠️ {couponError}
+                  </p>
+                )}
+              </div>
+
+              {/* Fiyat Dökümü */}
               <div className="space-y-1.5 text-xs text-gray-600">
                 {summary.saleSubtotal > 0 && (
                   <div className="flex justify-between">
@@ -179,9 +269,22 @@ export function CartDrawer() {
                     </span>
                   </div>
                 )}
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-emerald-600 font-semibold">
+                    <span>Kupon İndirimi ({couponResult?.code})</span>
+                    <span>- {formatCurrency(discountAmount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between border-t border-gray-100 pt-2 text-sm font-extrabold text-gray-900">
                   <span>Genel Toplam</span>
-                  <span>{formatCurrency(summary.grandTotal)}</span>
+                  <div className="text-right">
+                    {discountAmount > 0 && (
+                      <span className="block text-xs line-through text-gray-400 font-normal">
+                        {formatCurrency(summary.grandTotal)}
+                      </span>
+                    )}
+                    <span className="text-blue-600">{formatCurrency(finalGrandTotal)}</span>
+                  </div>
                 </div>
               </div>
 

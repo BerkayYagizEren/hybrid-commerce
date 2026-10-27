@@ -9,6 +9,8 @@ export interface CheckoutRequest {
   /** Kart ödeme bilgileri (Stripe / Iyzico Sandbox) */
   paymentCard?: PaymentCardData;
   shippingAddress?: ShippingAddress;
+  /** İndirim Kupon Kodu */
+  couponCode?: string;
 }
 
 export interface ShippingAddress {

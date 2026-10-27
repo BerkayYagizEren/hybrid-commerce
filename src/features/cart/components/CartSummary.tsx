@@ -113,37 +113,37 @@ export function CartSummaryComponent({ summary }: CartSummaryProps) {
       </div>
 
       {/* İndirim Kuponu Giriş Alanı */}
-      <div className="mt-5 border-t border-gray-100 pt-4">
-        <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-          İndirim Kuponu
+      <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50/40 p-4">
+        <label className="block text-xs font-bold text-gray-900 mb-2 flex items-center gap-1.5">
+          <span className="text-sm">🏷️</span> İndirim Kuponu / Promosyon Kodu
         </label>
         <form onSubmit={handleApplyCoupon} className="flex gap-2">
           <input
             type="text"
-            placeholder="Kupon Kodu (Örn: HOSGELDIN)"
+            placeholder="Kupon Kodu (Örn: HOSGELDIN, INDIRIM20)"
             value={couponCode}
             onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
             disabled={Boolean(couponResult?.valid)}
-            className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-xs uppercase font-mono tracking-wider focus:border-blue-500 focus:outline-none disabled:bg-gray-100"
+            className="flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs uppercase font-mono tracking-wider focus:border-blue-500 focus:outline-none disabled:bg-gray-100"
           />
           <Button
             type="submit"
             disabled={isApplying || Boolean(couponResult?.valid) || !couponCode.trim()}
-            className="rounded-xl px-4 py-2 text-xs font-bold"
+            className="rounded-xl px-4 py-2 text-xs font-bold shadow-xs cursor-pointer"
           >
             {isApplying ? "..." : "Uygula"}
           </Button>
         </form>
 
         {errorMsg && (
-          <p className="mt-2 text-xs font-medium text-red-600 animate-fade-in">
-            ⚠️ {errorMsg}
+          <p className="mt-2 text-xs font-semibold text-red-600 animate-fade-in flex items-center gap-1">
+            <span>⚠️</span> {errorMsg}
           </p>
         )}
 
         {couponResult && couponResult.valid && (
-          <p className="mt-2 text-xs font-medium text-emerald-600">
-            {couponResult.message}
+          <p className="mt-2 text-xs font-semibold text-emerald-700 animate-fade-in flex items-center gap-1">
+            <span>✅</span> {couponResult.message}
           </p>
         )}
       </div>

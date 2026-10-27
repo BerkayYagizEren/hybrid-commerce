@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { CheckoutForm, type CheckoutFormData } from "@/features/checkout/components/CheckoutForm";
 import { OrderSummary } from "@/features/checkout/components/OrderSummary";
 import type { CartSummary } from "@/features/cart/types";
 import { formatCurrency } from "@/shared/utils/format";
+import { validateCouponAction, type CouponValidationResult } from "@/features/coupons/actions/coupon.actions";
 import Link from "next/link";
 
 interface CheckoutSuccessData {
@@ -20,13 +21,50 @@ interface CheckoutSuccessData {
 
 interface CheckoutClientProps {
   initialSummary: CartSummary | null;
+  initialCouponCode?: string;
 }
 
-export function CheckoutClient({ initialSummary }: CheckoutClientProps) {
+export function CheckoutClient({ initialSummary, initialCouponCode = "" }: CheckoutClientProps) {
   const [summary] = useState<CartSummary | null>(initialSummary);
   const [processing, setProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successData, setSuccessData] = useState<CheckoutSuccessData | null>(null);
+
+  // Kupon State
+  const [couponResult, setCouponResult] = useState<CouponValidationResult | null>(null);
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
+
+  const applyCouponCode = useCallback(async (code: string) => {
+    if (!summary || !code.trim()) return;
+    setIsApplyingCoupon(true);
+    setCouponError(null);
+    try {
+      const res = await validateCouponAction(code.trim(), summary.grandTotal);
+      if (res.valid) {
+        setCouponResult(res);
+        setCouponError(null);
+      } else {
+        setCouponResult(null);
+        setCouponError(res.error || "Kupon uygulanamadı.");
+      }
+    } catch {
+      setCouponError("Kupon kontrol edilirken bir hata oluştu.");
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  }, [summary]);
+
+  const removeCoupon = () => {
+    setCouponResult(null);
+    setCouponError(null);
+  };
+
+  useEffect(() => {
+    if (initialCouponCode && summary) {
+      applyCouponCode(initialCouponCode);
+    }
+  }, [initialCouponCode, summary, applyCouponCode]);
 
   const handleSubmit = async (formData: CheckoutFormData) => {
     setProcessing(true);
@@ -46,6 +84,7 @@ export function CheckoutClient({ initialSummary }: CheckoutClientProps) {
             postalCode: formData.postalCode,
           },
           paymentCard: formData.paymentCard,
+          couponCode: couponResult?.valid ? couponResult.code : undefined,
         }),
       });
 
@@ -98,53 +137,53 @@ export function CheckoutClient({ initialSummary }: CheckoutClientProps) {
             <div className="flex justify-between text-xs sm:text-sm">
               <span className="text-gray-500">Tahsil Edilen Tutar:</span>
               <span className="font-bold text-gray-900">
-                {formatCurrency(successData.productTotal ?? successData.totalAmount)}
+                {formatCurrency(successData.totalAmount)}
               </span>
             </div>
 
+            {couponResult?.valid && (
+              <div className="flex justify-between text-xs sm:text-sm text-emerald-600">
+                <span>Uygulanan Kupon Kodu:</span>
+                <span className="font-bold">{couponResult.code}</span>
+              </div>
+            )}
+
             {successData.depositTotal && successData.depositTotal > 0 ? (
               <div className="flex justify-between text-xs sm:text-sm">
-                <span className="text-gray-500">Depozito Provizyonu (Escrow Hold):</span>
+                <span className="text-purple-600 font-medium">Depozito Provizyon Blokajı:</span>
                 <span className="font-bold text-purple-700">
-                  {formatCurrency(successData.depositTotal)} (Bloke Edildi)
+                  {formatCurrency(successData.depositTotal)} (Bloke)
                 </span>
               </div>
             ) : null}
 
-            {successData.transactionId && (
-              <div className="flex justify-between text-xs text-gray-400">
-                <span>İşlem Dekont No:</span>
-                <span className="font-mono">{successData.transactionId}</span>
-              </div>
-            )}
-
-            {successData.depositHoldId && (
-              <div className="flex justify-between text-xs text-gray-400">
-                <span>Escrow Hold ID:</span>
-                <span className="font-mono">{successData.depositHoldId}</span>
-              </div>
-            )}
-
-            {successData.cardLast4 && (
-              <div className="flex justify-between text-xs text-gray-500 pt-2 border-t border-gray-200">
-                <span>Ödeme Yapan Kart:</span>
-                <span className="font-medium">
-                  {successData.cardBrand || "Kart"} (•••• {successData.cardLast4})
+            {successData.cardBrand && (
+              <div className="flex justify-between text-xs sm:text-sm">
+                <span className="text-gray-500">Ödeme Yöntemi:</span>
+                <span className="font-medium text-gray-700">
+                  {successData.cardBrand} {successData.cardLast4 ? `(**** ${successData.cardLast4})` : ""}
                 </span>
+              </div>
+            )}
+
+            {successData.transactionId && (
+              <div className="flex justify-between text-xs text-gray-400 pt-2 border-t border-gray-200">
+                <span>İşlem Referansı (Transaction ID):</span>
+                <span className="font-mono">{successData.transactionId}</span>
               </div>
             )}
           </div>
 
-          <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
               href="/orders"
-              className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-md hover:bg-blue-700 transition"
+              className="w-full sm:w-auto inline-flex items-center justify-center rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-md hover:bg-blue-700 transition"
             >
-              📦 Siparişlerime Git
+              Siparişlerime Git
             </Link>
             <Link
               href="/products"
-              className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-6 py-3 text-sm font-bold text-gray-700 shadow-2xs hover:bg-gray-50 transition"
+              className="w-full sm:w-auto inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-6 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 transition"
             >
               Alışverişe Devam Et
             </Link>
@@ -209,7 +248,14 @@ export function CheckoutClient({ initialSummary }: CheckoutClientProps) {
 
         {/* Sağ Kolon: Sipariş ve Maliyet Özeti */}
         <div className="lg:col-span-5 lg:sticky lg:top-24">
-          <OrderSummary summary={summary} />
+          <OrderSummary
+            summary={summary}
+            couponResult={couponResult}
+            onApplyCoupon={applyCouponCode}
+            onRemoveCoupon={removeCoupon}
+            isApplyingCoupon={isApplyingCoupon}
+            couponError={couponError}
+          />
         </div>
       </div>
     </div>

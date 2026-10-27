@@ -1,13 +1,38 @@
+"use client";
+
+import { useState } from "react";
 import { Badge } from "@/shared/components/ui/Badge";
 import { formatCurrency, formatDate } from "@/shared/utils/format";
 import type { CartSummary } from "@/features/cart/types";
+import type { CouponValidationResult } from "@/features/coupons/actions/coupon.actions";
 
 interface OrderSummaryProps {
   summary: CartSummary;
+  couponResult?: CouponValidationResult | null;
+  onApplyCoupon?: (code: string) => Promise<void>;
+  onRemoveCoupon?: () => void;
+  isApplyingCoupon?: boolean;
+  couponError?: string | null;
 }
 
-export function OrderSummary({ summary }: OrderSummaryProps) {
+export function OrderSummary({
+  summary,
+  couponResult,
+  onApplyCoupon,
+  onRemoveCoupon,
+  isApplyingCoupon,
+  couponError,
+}: OrderSummaryProps) {
+  const [localCode, setLocalCode] = useState("");
   const productTotal = summary.saleSubtotal + summary.rentalSubtotal;
+  const discountAmount = couponResult?.valid ? couponResult.discountAmount : 0;
+  const finalGrandTotal = Math.max(0, summary.grandTotal - discountAmount);
+
+  const handleApply = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!localCode.trim() || !onApplyCoupon) return;
+    onApplyCoupon(localCode.trim());
+  };
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-xs">
@@ -57,8 +82,57 @@ export function OrderSummary({ summary }: OrderSummaryProps) {
         ))}
       </div>
 
+      {/* İndirim Kuponu Giriş Alanı */}
+      <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/40 p-3.5">
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+            <span>🏷️</span> İndirim Kuponu / Promosyon Kodu
+          </label>
+          {couponResult?.valid && onRemoveCoupon && (
+            <button
+              type="button"
+              onClick={onRemoveCoupon}
+              className="text-xs text-red-600 hover:text-red-700 font-medium underline"
+            >
+              Kaldır
+            </button>
+          )}
+        </div>
+
+        {couponResult?.valid ? (
+          <div className="flex items-center justify-between rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-800">
+            <span>✅ {couponResult.code} ({couponResult.message || "Uygulandı"})</span>
+            <span className="font-bold text-sm">- {formatCurrency(discountAmount)}</span>
+          </div>
+        ) : (
+          <form onSubmit={handleApply} className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Örn: HOSGELDIN, INDIRIM20"
+              value={localCode}
+              onChange={(e) => setLocalCode(e.target.value.toUpperCase())}
+              disabled={isApplyingCoupon}
+              className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-mono uppercase tracking-wider focus:border-blue-500 focus:outline-none"
+            />
+            <button
+              type="submit"
+              disabled={isApplyingCoupon || !localCode.trim()}
+              className="rounded-lg bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-xs font-bold text-white transition disabled:opacity-50 cursor-pointer shadow-xs"
+            >
+              {isApplyingCoupon ? "..." : "Uygula"}
+            </button>
+          </form>
+        )}
+
+        {couponError && (
+          <p className="mt-2 text-xs font-medium text-red-600">
+            ⚠️ {couponError}
+          </p>
+        )}
+      </div>
+
       {/* Maliyet Kalemleri (Ürün Toplamı, Kiralama Depozito Tutarı, Genel Toplam) */}
-      <div className="mt-5 space-y-3 border-t border-gray-100 pt-4">
+      <div className="mt-4 space-y-3 border-t border-gray-100 pt-4">
         {/* 1. Ürün Toplamı */}
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-600 font-medium">Ürün Toplamı</span>
@@ -95,6 +169,14 @@ export function OrderSummary({ summary }: OrderSummaryProps) {
           </span>
         </div>
 
+        {/* Kupon İndirimi */}
+        {discountAmount > 0 && (
+          <div className="flex items-center justify-between text-sm text-emerald-600 font-semibold">
+            <span>Kupon İndirimi ({couponResult?.code})</span>
+            <span>- {formatCurrency(discountAmount)}</span>
+          </div>
+        )}
+
         {/* 3. Genel Toplam */}
         <div className="flex items-center justify-between border-t border-gray-200 pt-3">
           <div>
@@ -102,8 +184,13 @@ export function OrderSummary({ summary }: OrderSummaryProps) {
             <p className="text-[11px] text-gray-400">Tahsilat + Provizyon Blokajı</p>
           </div>
           <div className="text-right">
+            {discountAmount > 0 && (
+              <span className="block text-xs line-through text-gray-400 font-medium">
+                {formatCurrency(summary.grandTotal)}
+              </span>
+            )}
             <span className="text-xl font-extrabold text-blue-600">
-              {formatCurrency(summary.grandTotal)}
+              {formatCurrency(finalGrandTotal)}
             </span>
           </div>
         </div>

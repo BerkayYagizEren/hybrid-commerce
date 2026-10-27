@@ -53,6 +53,8 @@ export async function POST(request: NextRequest) {
       cartId: cart.id,
       shippingAddress: body.shippingAddress,
       paymentCard: body.paymentCard,
+      paymentMethod: body.paymentMethod,
+      couponCode: body.couponCode,
     });
 
     if (result.success) {

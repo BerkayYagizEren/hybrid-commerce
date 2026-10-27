@@ -27,6 +27,7 @@
     "test:card": "tsx scripts/test-trendyol-product-card.ts",
     "test:serialization": "tsx scripts/test-decimal-serialization.ts",
     "test:favorites": "tsx scripts/test-favorites-and-wishlist.ts",
+    "test:cart-sync": "tsx scripts/test-wishlist-and-cart-sync.ts",
     "test:master": "tsx scripts/master-e2e-integration-suite.ts",
     "test:all": "tsx scripts/master-e2e-integration-suite.ts"
   },

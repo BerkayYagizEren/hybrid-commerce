@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useRole, type UserRoleType } from "@/shared/providers/RoleContext";
 import { useFavorites } from "@/features/favorites/context/FavoritesContext";
+import { useCart } from "@/features/cart/hooks/useCart";
 import { useState, useEffect, Suspense } from "react";
 import type { SessionUser } from "@/lib/auth-token";
 import { CategoryMegaMenu } from "@/components/CategoryMegaMenu";
@@ -11,6 +12,7 @@ import { CategoryMegaMenu } from "@/components/CategoryMegaMenu";
 function HeaderContent({ initialUser }: { initialUser?: SessionUser | null }) {
   const { role, user, logout, switchDemoRole } = useRole();
   const { favoriteCount } = useFavorites();
+  const { itemCount: cartItemCount, openCart } = useCart();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -144,7 +146,11 @@ function HeaderContent({ initialUser }: { initialUser?: SessionUser | null }) {
             {/* Sepet Butonu */}
             <Link
               href="/cart"
-              className="relative inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 flex-shrink-0 whitespace-nowrap"
+              onClick={(e) => {
+                e.preventDefault();
+                openCart();
+              }}
+              className="relative inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 flex-shrink-0 whitespace-nowrap cursor-pointer"
               title="Sepetim"
             >
               <svg
@@ -162,6 +168,11 @@ function HeaderContent({ initialUser }: { initialUser?: SessionUser | null }) {
                 />
               </svg>
               <span className="hidden sm:inline">Sepet</span>
+              {cartItemCount > 0 && (
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white shadow-xs">
+                  {cartItemCount}
+                </span>
+              )}
             </Link>
 
             {/* Oturum Açılmışsa: Kullanıcı Profil Alanı & Çıkış Yap */}
@@ -430,6 +441,23 @@ function HeaderContent({ initialUser }: { initialUser?: SessionUser | null }) {
               {favoriteCount > 0 && (
                 <span className="rounded-full bg-rose-500 px-2 py-0.5 text-xs font-bold text-white shadow-xs">
                   {favoriteCount}
+                </span>
+              )}
+            </Link>
+
+            {/* Sepetim */}
+            <Link
+              href="/cart"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-semibold text-blue-700 hover:bg-blue-50"
+            >
+              <span className="flex items-center gap-2">
+                <span>🛒</span>
+                <span>Sepetim</span>
+              </span>
+              {cartItemCount > 0 && (
+                <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-bold text-white shadow-xs">
+                  {cartItemCount}
                 </span>
               )}
             </Link>

@@ -9,8 +9,9 @@ import {
 } from "../actions/favorite.actions";
 import type { FavoritesContextType } from "../types";
 
-const LOCAL_STORAGE_KEY = "hybrid_favorites";
-const CACHE_KEY = "hybrid_favorites_cache";
+export const GUEST_FAVORITES_KEY = "guest_favorites";
+export const LEGACY_STORAGE_KEY = "hybrid_favorites";
+export const CACHE_KEY = "hybrid_favorites_cache";
 
 const FavoritesContext = createContext<FavoritesContextType | undefined>(undefined);
 
@@ -21,11 +22,14 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   const prevUserRef = useRef<string | null>(null);
 
   /**
-   * İstemci tarafında ilk mount anında anlık önbellekten oku (Sayfa yenilemede sıfır gecikme)
+   * İstemci tarafında ilk mount anında yerel depolamadan oku
    */
   useEffect(() => {
     try {
-      const cached = localStorage.getItem(CACHE_KEY) || localStorage.getItem(LOCAL_STORAGE_KEY);
+      const cached =
+        localStorage.getItem(CACHE_KEY) ||
+        localStorage.getItem(GUEST_FAVORITES_KEY) ||
+        localStorage.getItem(LEGACY_STORAGE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -45,7 +49,9 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
         // Kullanıcı oturum açmış: localStorage'daki misafir favorileri kontrol et
         let guestIds: string[] = [];
         try {
-          const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+          const stored =
+            localStorage.getItem(GUEST_FAVORITES_KEY) ||
+            localStorage.getItem(LEGACY_STORAGE_KEY);
           if (stored) {
             const parsed = JSON.parse(stored);
             if (Array.isArray(parsed) && parsed.length > 0) {
@@ -57,17 +63,25 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (guestIds.length > 0) {
-          // Misafir favorilerini veritabanına senkronize et
+          // Sadece o anki misafir oturumuna ait favorileri veritabanına aktar
           const syncRes = await syncFavoritesAction(guestIds, user.id);
-          const finalIds = (syncRes.success && syncRes.allFavoriteIds)
-            ? syncRes.allFavoriteIds
-            : await getFavoriteProductIds(user.id);
+
+          // Hemen ardından misafir localStorage verilerini derhal sıfırla
+          try {
+            localStorage.removeItem(GUEST_FAVORITES_KEY);
+            localStorage.removeItem(LEGACY_STORAGE_KEY);
+            localStorage.removeItem(CACHE_KEY);
+          } catch {}
+
+          const finalIds =
+            syncRes.success && syncRes.allFavoriteIds
+              ? syncRes.allFavoriteIds
+              : await getFavoriteProductIds(user.id);
 
           setFavoriteIds(finalIds);
           try {
             localStorage.setItem(CACHE_KEY, JSON.stringify(finalIds));
             localStorage.setItem(`hybrid_user_favs_${user.id}`, JSON.stringify(finalIds));
-            localStorage.removeItem(LOCAL_STORAGE_KEY);
           } catch {}
         } else {
           // Misafir favorisi yoksa doğrudan kullanıcının veritabanı favorilerini getir
@@ -81,7 +95,9 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
       } else {
         // Misafir kullanıcı: localStorage'dan oku
         try {
-          const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+          const stored =
+            localStorage.getItem(GUEST_FAVORITES_KEY) ||
+            localStorage.getItem(LEGACY_STORAGE_KEY);
           if (stored) {
             const parsed = JSON.parse(stored);
             const ids = Array.isArray(parsed) ? parsed : [];
@@ -102,9 +118,32 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  // Oturum durumu değiştiğinde favorileri yenile/senkronize et
+  // Oturum durumu değiştiğinde hesap izolasyonu ve favori temizliği
   useEffect(() => {
     const currentUserId = user ? user.id : null;
+    const prevUserId = prevUserRef.current;
+
+    // 1. Kullanıcı çıkış yaptı (logout): Eski kullanıcının favorilerini ve localStorage'ı temizle
+    if (prevUserId && !currentUserId) {
+      setFavoriteIds([]);
+      try {
+        localStorage.removeItem(GUEST_FAVORITES_KEY);
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+        localStorage.removeItem(CACHE_KEY);
+        localStorage.removeItem(`hybrid_user_favs_${prevUserId}`);
+      } catch {}
+    }
+
+    // 2. Farklı bir hesaba geçildi: Yeni oturuma eski favorilerin sızmasını engelle
+    if (prevUserId && currentUserId && prevUserId !== currentUserId) {
+      setFavoriteIds([]);
+      try {
+        localStorage.removeItem(GUEST_FAVORITES_KEY);
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+        localStorage.removeItem(CACHE_KEY);
+      } catch {}
+    }
+
     loadFavorites();
     prevUserRef.current = currentUserId;
   }, [user, loadFavorites]);
@@ -112,7 +151,11 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   // Sekmeler arası (Cross-tab) senkronizasyon dinleyicisi
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === LOCAL_STORAGE_KEY || e.key === CACHE_KEY) {
+      if (
+        e.key === GUEST_FAVORITES_KEY ||
+        e.key === LEGACY_STORAGE_KEY ||
+        e.key === CACHE_KEY
+      ) {
         if (e.newValue) {
           try {
             const parsed = JSON.parse(e.newValue);
@@ -139,7 +182,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * Favori Durumunu Değiştir (Toggle)
-   * Misafir modunda: localStorage
+   * Misafir modunda: localStorage ('guest_favorites')
    * Giriş yapmış modda: DB Server Action + Optimistic UI
    */
   const toggleFavorite = useCallback(
@@ -152,11 +195,12 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
       // 1. ANLIK OPTIMISTIC UI GÜNCELLEMESİ (Anında renk değişimi)
       setFavoriteIds(nextIds);
 
-      // 2. HER İKİ MODDA DA LOCALSTORAGE'A ANINDA YAZ (Sayfa yenilemede anlık kalıcılık)
+      // 2. HER İKİ MODDA DA LOCALSTORAGE'A ANINDA YAZ
       try {
         localStorage.setItem(CACHE_KEY, JSON.stringify(nextIds));
         if (!user) {
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(nextIds));
+          localStorage.setItem(GUEST_FAVORITES_KEY, JSON.stringify(nextIds));
+          localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(nextIds));
         } else {
           localStorage.setItem(`hybrid_user_favs_${user.id}`, JSON.stringify(nextIds));
         }

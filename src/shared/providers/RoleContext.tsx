@@ -90,7 +90,12 @@ export function RoleProvider({
       await logoutAction();
       setUser(null);
       setRoleState("CUSTOMER");
-      localStorage.removeItem("hybrid_commerce_role");
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("hybrid_commerce_role");
+        localStorage.removeItem("guest_favorites");
+        localStorage.removeItem("hybrid_favorites");
+        localStorage.removeItem("hybrid_favorites_cache");
+      }
       router.push("/");
       router.refresh();
     } finally {

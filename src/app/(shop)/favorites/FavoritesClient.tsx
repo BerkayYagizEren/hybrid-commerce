@@ -12,6 +12,7 @@ import {
 import { Badge } from "@/shared/components/ui/Badge";
 import { Button } from "@/shared/components/ui/Button";
 import { FavoriteButton } from "@/features/favorites/components/FavoriteButton";
+import { AddToCartModal } from "@/features/cart/components/AddToCartModal";
 import { formatCurrency } from "@/shared/utils/format";
 import type { SerializedProduct } from "@/features/products/types";
 
@@ -26,11 +27,22 @@ export function FavoritesClient({
 }: FavoritesClientProps) {
   const { user } = useRole();
   const { favoriteIds, isLoading: isFavLoading } = useFavorites();
-  const { addItem } = useCart();
+  const { addToCart, addItem, setIsCartOpen } = useCart();
 
   const [products, setProducts] = useState<SerializedProduct[]>(initialProducts);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [addedMap, setAddedMap] = useState<Record<string, boolean>>({});
+
+  // Sepete Ekle Modal Durumları
+  const [selectedProductForCart, setSelectedProductForCart] = useState<SerializedProduct | null>(null);
+  const [isCartModalOpen, setIsCartModalOpen] = useState(false);
+  const [cartModalAction, setCartModalAction] = useState<"SALE" | "RENTAL">("SALE");
+
+  const openAddToCartModal = (product: SerializedProduct, action: "SALE" | "RENTAL" = "SALE") => {
+    setSelectedProductForCart(product);
+    setCartModalAction(action);
+    setIsCartModalOpen(true);
+  };
 
   // Favoriler listesini senkronize et
   useEffect(() => {
@@ -67,15 +79,18 @@ export function FavoritesClient({
     };
   }, [user, favoriteIds]);
 
-  // Hızlı sepete ekleme işlemi (Satış için)
+  // Hızlı sepete ekleme işlemi (useCart addToCart)
   const handleAddToCart = async (product: SerializedProduct) => {
     setAddedMap((prev) => ({ ...prev, [product.id]: true }));
     try {
-      await addItem({
+      const success = await addToCart({
         productId: product.id,
         quantity: 1,
         type: "SALE",
       });
+      if (success) {
+        setIsCartOpen(true);
+      }
       setTimeout(() => {
         setAddedMap((prev) => ({ ...prev, [product.id]: false }));
       }, 2000);
@@ -291,8 +306,8 @@ export function FavoritesClient({
                     {product.type === "SALE" ? (
                       <Button
                         size="sm"
-                        onClick={() => handleAddToCart(product)}
-                        className={`w-full font-bold transition-all ${
+                        onClick={() => openAddToCartModal(product, "SALE")}
+                        className={`w-full font-bold transition-all cursor-pointer ${
                           isAdded
                             ? "bg-emerald-600 hover:bg-emerald-700 text-white"
                             : "bg-blue-600 hover:bg-blue-700 text-white"
@@ -301,21 +316,20 @@ export function FavoritesClient({
                         {isAdded ? "✓ Sepete Eklendi!" : "🛒 Sepete Ekle"}
                       </Button>
                     ) : product.type === "RENTAL" ? (
-                      <Link href={`/products/${product.slug}`} className="block w-full">
-                        <Button
-                          size="sm"
-                          className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold"
-                        >
-                          📅 Tarih Seç &amp; Kirala
-                        </Button>
-                      </Link>
+                      <Button
+                        size="sm"
+                        onClick={() => openAddToCartModal(product, "RENTAL")}
+                        className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold cursor-pointer"
+                      >
+                        📅 Tarih Seç &amp; Kirala
+                      </Button>
                     ) : (
                       // BOTH
                       <div className="grid grid-cols-2 gap-1.5">
                         <Button
                           size="sm"
-                          onClick={() => handleAddToCart(product)}
-                          className={`font-semibold text-xs ${
+                          onClick={() => openAddToCartModal(product, "SALE")}
+                          className={`font-semibold text-xs cursor-pointer ${
                             isAdded
                               ? "bg-emerald-600 text-white"
                               : "bg-blue-600 hover:bg-blue-700 text-white"
@@ -323,14 +337,13 @@ export function FavoritesClient({
                         >
                           {isAdded ? "✓ Eklendi" : "🛒 Satın Al"}
                         </Button>
-                        <Link href={`/products/${product.slug}`} className="block">
-                          <Button
-                            size="sm"
-                            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs"
-                          >
-                            📅 Kirala
-                          </Button>
-                        </Link>
+                        <Button
+                          size="sm"
+                          onClick={() => openAddToCartModal(product, "RENTAL")}
+                          className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs cursor-pointer"
+                        >
+                          📅 Kirala
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -340,6 +353,22 @@ export function FavoritesClient({
           })}
         </div>
       )}
+
+      {/* Sepete Ekleme Modalı */}
+      <AddToCartModal
+        product={selectedProductForCart}
+        isOpen={isCartModalOpen}
+        onClose={() => setIsCartModalOpen(false)}
+        defaultAction={cartModalAction}
+        onSuccess={() => {
+          if (selectedProductForCart) {
+            setAddedMap((prev) => ({ ...prev, [selectedProductForCart.id]: true }));
+            setTimeout(() => {
+              setAddedMap((prev) => ({ ...prev, [selectedProductForCart.id]: false }));
+            }, 2000);
+          }
+        }}
+      />
     </div>
   );
 }

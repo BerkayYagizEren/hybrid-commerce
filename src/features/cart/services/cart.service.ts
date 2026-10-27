@@ -38,6 +38,66 @@ export class CartService {
       });
     }
 
+    // Kullanıcı oturum açtığında, misafir oturumundan kalan sepet kalemlerini birleştir (Cart Merge)
+    if (userId && sessionId) {
+      try {
+        const guestCart = await prisma.cart.findFirst({
+          where: { sessionId, NOT: { userId } },
+          include: { items: true },
+        });
+
+        if (guestCart && guestCart.id !== cart.id && guestCart.items.length > 0) {
+          for (const item of guestCart.items) {
+            if (item.type === "SALE") {
+              const existing = await prisma.cartItem.findFirst({
+                where: { cartId: cart.id, productId: item.productId, type: "SALE" },
+              });
+              if (existing) {
+                await prisma.cartItem.update({
+                  where: { id: existing.id },
+                  data: { quantity: existing.quantity + item.quantity },
+                });
+              } else {
+                await prisma.cartItem.create({
+                  data: {
+                    cartId: cart.id,
+                    productId: item.productId,
+                    type: item.type,
+                    quantity: item.quantity,
+                  },
+                });
+              }
+            } else {
+              await prisma.cartItem.create({
+                data: {
+                  cartId: cart.id,
+                  productId: item.productId,
+                  type: item.type,
+                  quantity: item.quantity,
+                  rentalStart: item.rentalStart,
+                  rentalEnd: item.rentalEnd,
+                },
+              });
+            }
+          }
+          await prisma.cart.delete({ where: { id: guestCart.id } });
+
+          const refreshed = await prisma.cart.findUnique({
+            where: { id: cart.id },
+            include: {
+              items: {
+                include: { product: { include: { rentalPricing: true } } },
+                orderBy: { createdAt: "asc" },
+              },
+            },
+          });
+          if (refreshed) cart = refreshed;
+        }
+      } catch (e) {
+        console.warn("Guest cart merge error:", e);
+      }
+    }
+
     return cart;
   }
 

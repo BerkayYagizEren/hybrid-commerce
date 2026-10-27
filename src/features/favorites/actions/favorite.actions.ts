@@ -19,6 +19,11 @@ function safeRevalidate(path: string) {
  */
 export async function getFavoriteProductIds(explicitUserId?: string): Promise<string[]> {
   try {
+    if (!prisma?.favorite) {
+      console.warn("prisma.favorite model is not ready yet.");
+      return [];
+    }
+
     let userId = explicitUserId;
     if (!userId) {
       const user = await getCurrentUser();
@@ -44,6 +49,11 @@ export async function getFavoriteProductIds(explicitUserId?: string): Promise<st
  */
 export async function getFavoriteProducts(explicitUserId?: string): Promise<SerializedProduct[]> {
   try {
+    if (!prisma?.favorite) {
+      console.warn("prisma.favorite model is not ready yet.");
+      return [];
+    }
+
     let userId = explicitUserId;
     if (!userId) {
       const user = await getCurrentUser();
@@ -159,6 +169,14 @@ export async function toggleFavoriteAction(
       };
     }
 
+    if (!prisma?.favorite) {
+      return {
+        success: false,
+        isFavorite: false,
+        error: "Favoriler veritabanı servisi hazırlanıyor.",
+      };
+    }
+
     const existing = await prisma.favorite.findUnique({
       where: {
         userId_productId: {
@@ -222,6 +240,10 @@ export async function syncFavoritesAction(
     if (!guestProductIds || guestProductIds.length === 0) {
       const currentIds = await getFavoriteProductIds(userId);
       return { success: true, syncedCount: 0, allFavoriteIds: currentIds };
+    }
+
+    if (!prisma?.favorite) {
+      return { success: false, syncedCount: 0, allFavoriteIds: [] };
     }
 
     // Gerçekte var olan aktif ürünleri filtrele

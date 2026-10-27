@@ -382,17 +382,76 @@ function HeaderContent({ initialUser }: { initialUser?: SessionUser | null }) {
 
               {/* Admin Paneli Butonu (YALNIZCA VE YALNIZCA ADMIN) */}
               {activeRole === "ADMIN" && (
-                <Link
-                  href="/admin/dashboard"
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all ${
-                    pathname.startsWith("/admin")
-                      ? "bg-amber-600 text-white shadow-xs"
-                      : "bg-amber-100/80 text-amber-900 hover:bg-amber-200/80"
-                  }`}
-                  title="Yönetici Konsolu"
-                >
-                  <span>🛡️</span> Yönetim Paneli
-                </Link>
+                <div className="relative group">
+                  <Link
+                    href="/admin/dashboard"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all ${
+                      pathname.startsWith("/admin")
+                        ? "bg-amber-600 text-white shadow-xs"
+                        : "bg-amber-100/80 text-amber-900 hover:bg-amber-200/80"
+                    }`}
+                    title="Yönetici Konsolu"
+                  >
+                    <span>🛡️</span> Yönetim Paneli
+                    <svg className="w-3.5 h-3.5 ml-0.5 opacity-70 group-hover:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </Link>
+
+                  {/* Admin Açılır Hızlı Menü */}
+                  <div className="absolute right-0 top-full pt-1.5 hidden group-hover:block z-50">
+                    <div className="w-56 rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl space-y-0.5 text-xs animate-in fade-in duration-150">
+                      <Link
+                        href="/admin/dashboard"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-amber-50 hover:text-amber-900 font-semibold transition"
+                      >
+                        <span>📊</span> Dashboard
+                      </Link>
+                      <Link
+                        href="/admin/measurements"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-blue-700 hover:bg-blue-50 font-bold transition"
+                      >
+                        <span>📐</span> Ölçü Birimleri (Measurement)
+                      </Link>
+                      <Link
+                        href="/admin/warehouses"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 font-semibold transition"
+                      >
+                        <span>🏢</span> Çoklu Depo &amp; Stok
+                      </Link>
+                      <Link
+                        href="/admin/dealers"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-purple-50 hover:text-purple-900 font-semibold transition"
+                      >
+                        <span>💼</span> B2B Bayi Finans
+                      </Link>
+                      <Link
+                        href="/admin/showcase"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-pink-50 hover:text-pink-900 font-semibold transition"
+                      >
+                        <span>🖼️</span> Vitrin &amp; Slider
+                      </Link>
+                      <Link
+                        href="/admin/categories"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-900 font-semibold transition"
+                      >
+                        <span>📁</span> Kategoriler
+                      </Link>
+                      <Link
+                        href="/admin/reviews"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-amber-50 hover:text-amber-900 font-semibold transition"
+                      >
+                        <span>⭐</span> Yorum Moderasyonu
+                      </Link>
+                      <Link
+                        href="/admin/orders"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 hover:text-gray-900 font-semibold transition"
+                      >
+                        <span>📑</span> Tüm Siparişler
+                      </Link>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -486,13 +545,22 @@ function HeaderContent({ initialUser }: { initialUser?: SessionUser | null }) {
 
             {/* YALNIZCA VE YALNIZCA Yönetici (ADMIN): Yönetim Paneli */}
             {activeRole === "ADMIN" && (
-              <Link
-                href="/admin/dashboard"
-                onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 rounded-lg text-sm font-bold text-amber-900 bg-amber-50 hover:bg-amber-100"
-              >
-                🛡️ Yönetim Paneli
-              </Link>
+              <div className="space-y-1">
+                <Link
+                  href="/admin/dashboard"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="px-3 py-2 rounded-lg text-sm font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 flex items-center gap-2"
+                >
+                  <span>🛡️</span> Yönetim Paneli
+                </Link>
+                <Link
+                  href="/admin/measurements"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold text-blue-700 bg-blue-50/70 hover:bg-blue-100 flex items-center gap-2 ml-2"
+                >
+                  <span>📐</span> Ölçü Birimleri (Measurement)
+                </Link>
+              </div>
             )}
           </div>
 

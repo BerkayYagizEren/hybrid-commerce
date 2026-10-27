@@ -164,36 +164,71 @@ export default function AdminDashboardPage() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
           <Link
-            href="/admin/reviews"
-            className="rounded-xl border border-amber-200 bg-amber-50/70 px-3.5 py-2 text-xs sm:text-sm font-bold text-amber-800 shadow-2xs hover:bg-amber-100 transition-colors flex items-center gap-1.5"
+            href="/admin/measurements"
+            className="rounded-xl border border-blue-200 bg-blue-50/80 px-3 py-1.5 text-xs font-bold text-blue-700 shadow-2xs hover:bg-blue-100 transition-colors flex items-center gap-1.5"
           >
-            <span>⭐</span>
-            <span>Yorum Moderasyonu</span>
+            <span>📐</span>
+            <span>Ölçü Birimleri</span>
           </Link>
+
+          <Link
+            href="/admin/warehouses"
+            className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-1.5 text-xs font-bold text-emerald-700 shadow-2xs hover:bg-emerald-100 transition-colors flex items-center gap-1.5"
+          >
+            <span>🏢</span>
+            <span>Depolar & Stok</span>
+          </Link>
+
+          <Link
+            href="/admin/dealers"
+            className="rounded-xl border border-purple-200 bg-purple-50/80 px-3 py-1.5 text-xs font-bold text-purple-700 shadow-2xs hover:bg-purple-100 transition-colors flex items-center gap-1.5"
+          >
+            <span>💼</span>
+            <span>B2B Bayi Finans</span>
+          </Link>
+
+          <Link
+            href="/admin/showcase"
+            className="rounded-xl border border-pink-200 bg-pink-50/80 px-3 py-1.5 text-xs font-bold text-pink-700 shadow-2xs hover:bg-pink-100 transition-colors flex items-center gap-1.5"
+          >
+            <span>🖼️</span>
+            <span>Vitrin & Slider</span>
+          </Link>
+
           <Link
             href="/admin/categories"
-            className="rounded-xl border border-blue-200 bg-blue-50/70 px-3.5 py-2 text-xs sm:text-sm font-bold text-blue-700 shadow-2xs hover:bg-blue-100 transition-colors"
+            className="rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-1.5 text-xs font-bold text-blue-700 shadow-2xs hover:bg-blue-100 transition-colors flex items-center gap-1.5"
           >
-            📁 Kategoriler
+            <span>📁</span>
+            <span>Kategoriler</span>
+          </Link>
+
+          <Link
+            href="/admin/reviews"
+            className="rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-1.5 text-xs font-bold text-amber-800 shadow-2xs hover:bg-amber-100 transition-colors flex items-center gap-1.5"
+          >
+            <span>⭐</span>
+            <span>Yorumlar</span>
           </Link>
 
           <Link
             href="/admin/orders"
-            className="rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs sm:text-sm font-semibold text-gray-700 shadow-2xs hover:bg-gray-50 transition-colors"
+            className="rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs hover:bg-gray-50 transition-colors flex items-center gap-1.5"
           >
-            📑 Tüm Siparişler ({metrics.totalOrdersCount})
+            <span>📑</span>
+            <span>Siparişler ({metrics.totalOrdersCount})</span>
           </Link>
 
           <button
             type="button"
             disabled={isExporting}
             onClick={handleExportFinancialReport}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-amber-700 disabled:opacity-50 cursor-pointer transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-amber-700 disabled:opacity-50 cursor-pointer transition-colors"
           >
             <span>📊</span>
-            <span>{isExporting ? "Hazırlanıyor..." : "Finansal Rapor Al"}</span>
+            <span>{isExporting ? "..." : "Finansal Rapor"}</span>
           </button>
         </div>
       </div>
@@ -255,6 +290,133 @@ export default function AdminDashboardPage() {
           <p className="mt-1 text-xs text-amber-700">
             {formatCurrency(pendingDepositSum)} incelemede
           </p>
+        </div>
+      </div>
+
+      {/* Yönetim Modülleri Hızlı Erişim Kartları */}
+      <div className="mb-8">
+        <h2 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
+          <span>⚡</span> Yönetim Modülleri &amp; Hızlı Erişim
+        </h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Link
+            href="/admin/measurements"
+            className="group rounded-2xl border border-gray-200 bg-white p-4 shadow-xs hover:border-blue-500 hover:shadow-md transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-2xl group-hover:scale-110 transition-transform">
+                📐
+              </span>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 group-hover:text-blue-600">
+                  Ölçü Birimleri
+                </h3>
+                <p className="text-[11px] text-gray-500">Adet, Metre, Kg vb. birim CRUD</p>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/admin/warehouses"
+            className="group rounded-2xl border border-gray-200 bg-white p-4 shadow-xs hover:border-emerald-500 hover:shadow-md transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-2xl group-hover:scale-110 transition-transform">
+                🏢
+              </span>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 group-hover:text-emerald-600">
+                  Çoklu Depo &amp; Stok
+                </h3>
+                <p className="text-[11px] text-gray-500">Şubeler ve depo stok düşümleri</p>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/admin/dealers"
+            className="group rounded-2xl border border-gray-200 bg-white p-4 shadow-xs hover:border-purple-500 hover:shadow-md transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-50 text-2xl group-hover:scale-110 transition-transform">
+                💼
+              </span>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 group-hover:text-purple-600">
+                  B2B Bayi Finans
+                </h3>
+                <p className="text-[11px] text-gray-500">Kredi limiti, bakiye &amp; iskonto</p>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/admin/showcase"
+            className="group rounded-2xl border border-gray-200 bg-white p-4 shadow-xs hover:border-pink-500 hover:shadow-md transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-pink-50 text-2xl group-hover:scale-110 transition-transform">
+                🖼️
+              </span>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 group-hover:text-pink-600">
+                  Vitrin &amp; Slider
+                </h3>
+                <p className="text-[11px] text-gray-500">Hero slider, Trend &amp; Instagram</p>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/admin/categories"
+            className="group rounded-2xl border border-gray-200 bg-white p-4 shadow-xs hover:border-blue-500 hover:shadow-md transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-2xl group-hover:scale-110 transition-transform">
+                📁
+              </span>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 group-hover:text-blue-600">
+                  Kategoriler
+                </h3>
+                <p className="text-[11px] text-gray-500">Hiyerarşik kategori ağacı</p>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/admin/reviews"
+            className="group rounded-2xl border border-gray-200 bg-white p-4 shadow-xs hover:border-amber-500 hover:shadow-md transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-2xl group-hover:scale-110 transition-transform">
+                ⭐
+              </span>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 group-hover:text-amber-600">
+                  Yorum Moderasyonu
+                </h3>
+                <p className="text-[11px] text-gray-500">Onay/red ve değerlendirmeler</p>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/admin/orders"
+            className="group rounded-2xl border border-gray-200 bg-white p-4 shadow-xs hover:border-indigo-500 hover:shadow-md transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-2xl group-hover:scale-110 transition-transform">
+                📑
+              </span>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 group-hover:text-indigo-600">
+                  Tüm Siparişler
+                </h3>
+                <p className="text-[11px] text-gray-500">Satış &amp; kiralama siparişleri</p>
+              </div>
+            </div>
+          </Link>
         </div>
       </div>
 

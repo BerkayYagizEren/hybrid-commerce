@@ -241,6 +241,27 @@ async function main() {
     });
   }
 
+  // ─────────────────────────────────────────────
+  // 7. Ölçü Birimleri (Measurements)
+  // ─────────────────────────────────────────────
+  const measurementUnits = [
+    { name: "Adet", code: "ADET" },
+    { name: "Metre", code: "METRE" },
+    { name: "Kilogram", code: "KG" },
+    { name: "Litre", code: "LT" },
+    { name: "Set / Kutu", code: "SET" },
+    { name: "Günlük Paket", code: "GUN" },
+    { name: "Haftalık Paket", code: "HAFTA" },
+  ];
+
+  for (const m of measurementUnits) {
+    await prisma.measurement.upsert({
+      where: { code: m.code },
+      create: m,
+      update: m,
+    });
+  }
+
   console.log("✅ Seed tamamlandı:", { laptop: laptop.id, kamera: kamera.id, cadir: cadir.id });
 }
 

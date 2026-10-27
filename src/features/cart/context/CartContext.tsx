@@ -1,7 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import type { CartSummary, AddToCartRequest, CartItemDisplay } from "../types";
+import { useRole } from "@/shared/providers/RoleContext";
 
 export interface CartContextType {
   summary: CartSummary | null;
@@ -23,6 +24,9 @@ export interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useRole();
+  const prevUserIdRef = useRef<string | null | undefined>(undefined);
+
   const [summary, setSummary] = useState<CartSummary | null>(null);
   const [cartId, setCartId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -46,6 +50,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Kullanıcı giriş/çıkış veya rol değiştirdiğinde sepeti otomatik tazele
+  useEffect(() => {
+    if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== user?.id) {
+      refresh();
+    }
+    prevUserIdRef.current = user?.id;
+  }, [user?.id, refresh]);
 
   const addItem = useCallback(
     async (request: AddToCartRequest): Promise<boolean> => {
@@ -76,6 +88,36 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const removeItem = useCallback(
     async (itemId: string) => {
+      // İyimser UI güncellemesi: Kullanıcıya anında görsel yanıt ver
+      setSummary((prev) => {
+        if (!prev) return prev;
+        const filteredItems = prev.items.filter((it) => it.id !== itemId);
+        const removedItem = prev.items.find((it) => it.id === itemId);
+        if (!removedItem) return prev;
+
+        const saleSubtotal =
+          removedItem.type === "SALE"
+            ? Math.max(0, prev.saleSubtotal - removedItem.totalPrice)
+            : prev.saleSubtotal;
+        const rentalSubtotal =
+          removedItem.type === "RENTAL"
+            ? Math.max(0, prev.rentalSubtotal - removedItem.totalPrice)
+            : prev.rentalSubtotal;
+        const totalDeposit =
+          removedItem.type === "RENTAL"
+            ? Math.max(0, prev.totalDeposit - (removedItem.depositAmount ?? 0))
+            : prev.totalDeposit;
+
+        return {
+          items: filteredItems,
+          itemCount: filteredItems.length,
+          saleSubtotal,
+          rentalSubtotal,
+          totalDeposit,
+          grandTotal: saleSubtotal + rentalSubtotal + totalDeposit,
+        };
+      });
+
       try {
         const res = await fetch(`/api/cart/items?itemId=${itemId}`, {
           method: "DELETE",
@@ -84,10 +126,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           const data = await res.json();
           if (data.summary) {
             setSummary(data.summary);
-          } else {
-            await refresh();
+            return;
           }
         }
+        await refresh();
       } catch (err) {
         console.error("Sepetten ürün silme hatası:", err);
         await refresh();

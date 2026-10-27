@@ -36,7 +36,14 @@ export function CartItemComponent({
               {item.type === "SALE" ? "Satın Alma" : "Kiralama"}
             </Badge>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => onRemove(item.id)}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => onRemove(item.id)}
+            className="text-gray-400 hover:text-red-600 hover:bg-red-50 cursor-pointer h-8 w-8 p-0"
+            title="Sepetten Kaldır"
+          >
             ✕
           </Button>
         </div>

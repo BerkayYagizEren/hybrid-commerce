@@ -8,6 +8,7 @@ import { formatCurrency } from "@/shared/utils/format";
 import { RentalCalendar } from "@/features/rental/components/RentalCalendar";
 import { RentalPriceSummary } from "@/features/rental/components/RentalPriceSummary";
 import { FavoriteButton } from "@/features/favorites/components/FavoriteButton";
+import { useCart } from "@/features/cart/hooks/useCart";
 import type { SerializedProduct } from "../types";
 
 interface ProductDetailProps {
@@ -20,6 +21,7 @@ interface ProductDetailProps {
  * BOTH tipindeki ürünler için tab ile geçiş yapılabilir.
  */
 export function ProductDetail({ product }: ProductDetailProps) {
+  const { addToCart, setIsCartOpen } = useCart();
   const [activeTab, setActiveTab] = useState<"sale" | "rental">(
     product.type === "RENTAL" ? "rental" : "sale"
   );
@@ -43,6 +45,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
   };
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAdded, setIsAdded] = useState(false);
 
   const canSale = product.type === "SALE" || product.type === "BOTH";
   const canRental = product.type === "RENTAL" || product.type === "BOTH";
@@ -50,36 +53,35 @@ export function ProductDetail({ product }: ProductDetailProps) {
     (product.inventory?.totalStock ?? 0) - (product.inventory?.reservedStock ?? 0);
 
   const handleAddToCart = async () => {
-    setIsSubmitting(true);
-    const payload: Record<string, unknown> = {
-      productId: product.id,
-      type: activeTab === "sale" ? "SALE" : "RENTAL",
-    };
-
-    if (activeTab === "sale") {
-      payload.quantity = quantity;
-    } else {
+    if (activeTab === "rental") {
       if (!rentalDates.start || !rentalDates.end) {
         alert("Lütfen kiralama tarihlerini seçin");
-        setIsSubmitting(false);
         return;
       }
-      payload.rentalStart = rentalDates.start.toISOString();
-      payload.rentalEnd = rentalDates.end.toISOString();
     }
 
+    setIsSubmitting(true);
     try {
-      const res = await fetch("/api/cart/items", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      const success = await addToCart({
+        productId: product.id,
+        type: activeTab === "sale" ? "SALE" : "RENTAL",
+        quantity: activeTab === "sale" ? quantity : 1,
+        rentalStart:
+          activeTab === "rental" && rentalDates.start
+            ? rentalDates.start.toISOString()
+            : undefined,
+        rentalEnd:
+          activeTab === "rental" && rentalDates.end
+            ? rentalDates.end.toISOString()
+            : undefined,
       });
 
-      if (res.ok) {
-        alert("✅ Ürün başarıyla sepete eklendi!");
+      if (success) {
+        setIsAdded(true);
+        setIsCartOpen(true);
+        setTimeout(() => setIsAdded(false), 3000);
       } else {
-        const data = await res.json();
-        alert(data.error || "Bir hata oluştu");
+        alert("Ürün sepete eklenirken bir hata oluştu.");
       }
     } catch {
       alert("Bir hata oluştu");
@@ -319,11 +321,17 @@ export function ProductDetail({ product }: ProductDetailProps) {
             <Button
               size="lg"
               variant="sale"
-              className="w-full text-base font-bold py-3.5 shadow-md cursor-pointer"
+              className="w-full text-base font-bold py-3.5 shadow-md cursor-pointer transition-all"
               disabled={availableStock <= 0 || isSubmitting}
               onClick={handleAddToCart}
             >
-              {availableStock > 0 ? "🛒 Satın Al & Sepete Ekle" : "Stokta Yok"}
+              {isSubmitting
+                ? "Sepete Ekleniyor..."
+                : isAdded
+                ? "✓ Sepete Eklendi!"
+                : availableStock > 0
+                ? "🛒 Satın Al & Sepete Ekle"
+                : "Stokta Yok"}
             </Button>
           </div>
         )}
@@ -384,11 +392,15 @@ export function ProductDetail({ product }: ProductDetailProps) {
             <Button
               size="lg"
               variant="rental"
-              className="w-full text-base font-bold py-3.5 shadow-md cursor-pointer"
+              className="w-full text-base font-bold py-3.5 shadow-md cursor-pointer transition-all"
               disabled={!rentalDates.start || !rentalDates.end || isSubmitting}
               onClick={handleAddToCart}
             >
-              {rentalDates.start && rentalDates.end
+              {isSubmitting
+                ? "Sepete Ekleniyor..."
+                : isAdded
+                ? "✓ Sepete Eklendi!"
+                : rentalDates.start && rentalDates.end
                 ? "📅 Kiralama Sepetine Ekle"
                 : "📅 Lütfen Kiralama Tarih Aralığı Seçin"}
             </Button>

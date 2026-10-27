@@ -144,7 +144,14 @@ export class CartService {
    * Sepet kalemini kaldır
    */
   static async removeItem(itemId: string) {
-    return prisma.cartItem.delete({ where: { id: itemId } });
+    try {
+      return await prisma.cartItem.delete({ where: { id: itemId } });
+    } catch (e: unknown) {
+      if (typeof e === "object" && e !== null && "code" in e && (e as { code: string }).code === "P2025") {
+        return null;
+      }
+      throw e;
+    }
   }
 
   /**
@@ -154,10 +161,17 @@ export class CartService {
     if (quantity <= 0) {
       return this.removeItem(itemId);
     }
-    return prisma.cartItem.update({
-      where: { id: itemId },
-      data: { quantity },
-    });
+    try {
+      return await prisma.cartItem.update({
+        where: { id: itemId },
+        data: { quantity },
+      });
+    } catch (e: unknown) {
+      if (typeof e === "object" && e !== null && "code" in e && (e as { code: string }).code === "P2025") {
+        return null;
+      }
+      throw e;
+    }
   }
 
   /**

@@ -178,6 +178,15 @@ async function runFavoritesAndWishlistTests() {
 
     const cardContent = fs.readFileSync(cardPath, "utf-8");
     assert(cardContent.includes("FavoriteButton"), "ProductCard üzerinde kalp butonu (FavoriteButton) mevcut");
+    assert(cardContent.includes("relative aspect-square") || cardContent.includes("relative"), "Ürün görsel alanı relative konteynıra sahip");
+    assert(cardContent.includes("top-3 right-3") || cardContent.includes("bottom-3 right-3"), "FavoriteButton görsel üzerinde absolute top-3 right-3 / bottom-3 right-3 konumuna sahip");
+
+    const buttonContent = fs.readFileSync(buttonPath, "utf-8");
+    assert(buttonContent.includes("bg-white/80") && buttonContent.includes("hover:bg-white"), "FavoriteButton yarı saydam beyaz ve hover arkaplanına sahip (bg-white/80 hover:bg-white)");
+    assert(buttonContent.includes("rounded-full") && buttonContent.includes("p-2") && buttonContent.includes("backdrop-blur-sm"), "FavoriteButton dairesel ve backdrop-blur-sm filtreye sahip");
+    assert(buttonContent.includes("fill-red-500") && buttonContent.includes("text-red-500"), "Favorideyken kalbin içi ve çizgisi kırmızı (fill-red-500 text-red-500)");
+    assert(buttonContent.includes("text-gray-600"), "Favoride değilken gri çizgi kalp (text-gray-600) aktif");
+    assert(buttonContent.includes("e.stopPropagation()") && buttonContent.includes("e.preventDefault()"), "Kalbe tıklandığında kart yönlendirmesini önleyen e.stopPropagation() ve e.preventDefault() kontrolleri mevcut");
 
     const detailContent = fs.readFileSync(detailPath, "utf-8");
     assert(detailContent.includes("FavoriteButton"), "ProductDetail detay sayfasında kalp butonu mevcut");

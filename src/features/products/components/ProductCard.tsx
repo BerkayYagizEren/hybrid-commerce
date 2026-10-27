@@ -8,6 +8,7 @@ import type { ProductWithDetails, SerializedProduct } from "../types";
 
 interface ProductCardProps {
   product: ProductWithDetails | SerializedProduct;
+  heartPosition?: "top-right" | "bottom-right";
 }
 
 /**
@@ -49,7 +50,10 @@ function MiniStars({ rating }: { rating: number }) {
 /**
  * Sadeleştirilmiş, Sadece Yıldız ve Yorum Odaklı Ürün Kartı
  */
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({
+  product,
+  heartPosition = "top-right",
+}: ProductCardProps) {
   const typeLabel = {
     SALE: "Satılık",
     RENTAL: "Kiralık",
@@ -91,18 +95,31 @@ export function ProductCard({ product }: ProductCardProps) {
         )}
 
         {/* Tip Etiketi */}
-        <div className="absolute left-2.5 top-2.5">
+        <div className="absolute left-3 top-3">
           <Badge variant={badgeVariant} className="shadow-xs font-semibold text-[10px] px-2 py-0.5">
             {typeLabel[product.type]}
           </Badge>
         </div>
 
-        {/* Favori Kalp Butonu */}
-        <FavoriteButton productId={product.id} className="absolute right-2.5 top-2.5 z-10" />
+        {/* Favori Kalp Butonu (Görsel üzerinde sağ üst veya sağ alt konumlandırma) */}
+        <FavoriteButton
+          productId={product.id}
+          className={`z-10 ${
+            heartPosition === "bottom-right"
+              ? "absolute bottom-3 right-3"
+              : "absolute top-3 right-3"
+          }`}
+        />
 
         {/* Çoklu Görsel İndikatörü */}
         {product.images && product.images.length > 1 && (
-          <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs shadow-xs">
+          <div
+            className={`absolute z-10 flex items-center gap-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs shadow-xs ${
+              heartPosition === "bottom-right"
+                ? "bottom-3 left-3"
+                : "bottom-3 right-3"
+            }`}
+          >
             <span>📷</span>
             <span>{product.images.length}</span>
           </div>

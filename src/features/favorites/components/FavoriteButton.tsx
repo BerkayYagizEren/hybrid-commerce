@@ -19,6 +19,7 @@ export function FavoriteButton({
   const [isAnimating, setIsAnimating] = useState(false);
 
   const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    // Kalbe tıklandığında kart yönlendirmesinin (link tıklamasının) tetiklenmemesi için
     e.preventDefault();
     e.stopPropagation();
 
@@ -26,12 +27,6 @@ export function FavoriteButton({
     await toggleFavorite(productId);
     setTimeout(() => setIsAnimating(false), 300);
   };
-
-  const sizeClasses = {
-    sm: "h-7 w-7 text-xs",
-    md: "h-8.5 w-8.5 text-sm",
-    lg: "h-11 w-11 text-base",
-  }[size];
 
   const iconSizes = {
     sm: "h-4 w-4",
@@ -45,19 +40,21 @@ export function FavoriteButton({
       onClick={handleClick}
       aria-label={favorite ? "Favorilerden Çıkar" : "Favorilere Ekle"}
       title={favorite ? "Favorilerden Çıkar" : "Favorilere Ekle"}
-      className={`group/fav relative flex items-center justify-center rounded-full bg-white/95 backdrop-blur-xs shadow-xs transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer ${
+      className={`group/fav relative flex items-center justify-center rounded-full bg-white/80 hover:bg-white shadow-md p-2 backdrop-blur-sm transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer border border-gray-100/80 ${
         favorite
-          ? "text-rose-500 hover:bg-rose-50 border border-rose-200"
-          : "text-gray-400 hover:text-rose-500 hover:bg-white border border-gray-200/80"
-      } ${sizeClasses} ${isAnimating ? "scale-125" : ""} ${className}`}
+          ? "fill-red-500 text-red-500"
+          : "text-gray-600 hover:text-red-500"
+      } ${isAnimating ? "scale-125" : ""} ${className}`}
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"
-        className={`${iconSizes} transition-transform duration-200 ${
+        strokeWidth={favorite ? "0" : "1.8"}
+        stroke="currentColor"
+        className={`${iconSizes} transition-colors duration-200 ${
           favorite
-            ? "fill-rose-500 text-rose-500"
-            : "fill-none stroke-current stroke-2 group-hover/fav:text-rose-500"
+            ? "fill-red-500 text-red-500"
+            : "fill-none text-gray-600 group-hover/fav:text-red-500"
         }`}
       >
         <path
@@ -69,3 +66,5 @@ export function FavoriteButton({
     </button>
   );
 }
+
+export default FavoriteButton;

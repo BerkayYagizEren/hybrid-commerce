@@ -217,7 +217,7 @@ export function FavoritesClient({
                   </div>
 
                   {/* Kalp Butonu (Favorilerden Çıkarma) */}
-                  <FavoriteButton productId={product.id} className="absolute right-2.5 top-2.5 z-10" />
+                  <FavoriteButton productId={product.id} className="absolute top-3 right-3 z-10" />
                 </div>
 
                 {/* Ürün Detayları */}

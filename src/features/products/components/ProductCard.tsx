@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Badge } from "@/shared/components/ui/Badge";
 import { formatCurrency } from "@/shared/utils/format";
+import { FavoriteButton } from "@/features/favorites/components/FavoriteButton";
 import type { ProductWithDetails, SerializedProduct } from "../types";
 
 interface ProductCardProps {
@@ -95,6 +96,9 @@ export function ProductCard({ product }: ProductCardProps) {
             {typeLabel[product.type]}
           </Badge>
         </div>
+
+        {/* Favori Kalp Butonu */}
+        <FavoriteButton productId={product.id} className="absolute right-2.5 top-2.5 z-10" />
 
         {/* Çoklu Görsel İndikatörü */}
         {product.images && product.images.length > 1 && (

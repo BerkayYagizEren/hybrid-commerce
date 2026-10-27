@@ -296,7 +296,7 @@ async function runMasterE2EIntegrationSuite() {
       "MODÜL 3",
       "3.3",
       "updateCategory kategori bilgilerini başarıyla güncellemeli",
-      updateResult.success && updateResult.category?.name.includes("Güncellendi"),
+      Boolean(updateResult.success && updateResult.category?.name.includes("Güncellendi")),
       "İsimde '(Güncellendi)' ibaresi mevcut",
       `Güncellenen isim: "${updateResult.category?.name}"`
     );
@@ -468,8 +468,8 @@ async function runMasterE2EIntegrationSuite() {
       productId: rentalProd.id,
       quantity: 1,
       type: "RENTAL",
-      rentalStart,
-      rentalEnd,
+      rentalStart: rentalStart.toISOString(),
+      rentalEnd: rentalEnd.toISOString(),
     });
 
     const summary = await CartService.getSummary(cart.id);
@@ -560,10 +560,10 @@ async function runMasterE2EIntegrationSuite() {
     );
 
     // Müşteri İade Talebi Başlatır
-    await requestRentalReturn(testRentalId!, "Kiralama süresi bitti, ürün kargolandı");
+    await requestRentalReturn(testRentalId!);
 
     // Satıcı / Admin İadeyi Onaylar (Depozito kartına iade edilir)
-    const approveResult = await approveRentalReturn(testRentalId!, "Ürün hasarsız teslim alındı");
+    const approveResult = await approveRentalReturn(testRentalId!);
     assert(
       "MODÜL 4",
       "4.7",
@@ -634,8 +634,7 @@ async function runMasterE2EIntegrationSuite() {
       "MODÜL 5",
       "5.2",
       "Satın almamış müşterinin yorum yazması güvenlik filtresine takılmalı",
-      !nonBuyerReviewAttempt.success &&
-        nonBuyerReviewAttempt.error?.includes("doğrulanmış müşteriler"),
+      Boolean(!nonBuyerReviewAttempt.success && nonBuyerReviewAttempt.error?.includes("doğrulanmış müşteriler")),
       "success: false ve 'doğrulanmış müşteriler' hatası",
       `success: ${nonBuyerReviewAttempt.success}, error: "${nonBuyerReviewAttempt.error}"`
     );

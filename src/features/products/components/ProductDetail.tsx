@@ -7,6 +7,7 @@ import { Button } from "@/shared/components/ui/Button";
 import { formatCurrency } from "@/shared/utils/format";
 import { RentalCalendar } from "@/features/rental/components/RentalCalendar";
 import { RentalPriceSummary } from "@/features/rental/components/RentalPriceSummary";
+import { FavoriteButton } from "@/features/favorites/components/FavoriteButton";
 import type { SerializedProduct } from "../types";
 
 interface ProductDetailProps {
@@ -161,7 +162,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
 
       {/* Sağ: Ürün Bilgileri ve Eylem Alanları */}
       <div className="flex flex-col">
-        <div className="mb-2">
+        <div className="mb-2 flex items-center justify-between">
           <Badge
             variant={product.type.toLowerCase() as "sale" | "rental" | "both"}
           >
@@ -171,6 +172,9 @@ export function ProductDetail({ product }: ProductDetailProps) {
               ? "Kiralık"
               : "Satılık & Kiralık"}
           </Badge>
+
+          {/* Favori Kalp Butonu */}
+          <FavoriteButton productId={product.id} size="md" />
         </div>
 
         <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">

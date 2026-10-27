@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Header } from "@/shared/layout/Header";
 import { Footer } from "@/shared/layout/Footer";
 import { RoleProvider } from "@/shared/providers/RoleContext";
+import { FavoritesProvider } from "@/features/favorites/context/FavoritesContext";
 import { getCurrentUser } from "@/features/auth/actions/auth.actions";
 import "./globals.css";
 
@@ -22,9 +23,11 @@ export default async function RootLayout({
     <html lang="tr">
       <body className="flex min-h-screen flex-col bg-gray-50 text-gray-900 antialiased">
         <RoleProvider initialUser={user}>
-          <Header initialUser={user} />
-          <main className="flex-1">{children}</main>
-          <Footer />
+          <FavoritesProvider>
+            <Header initialUser={user} />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </FavoritesProvider>
         </RoleProvider>
       </body>
     </html>

@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useRole, type UserRoleType } from "@/shared/providers/RoleContext";
+import { useFavorites } from "@/features/favorites/context/FavoritesContext";
 import { useState, useEffect, Suspense } from "react";
 import type { SessionUser } from "@/lib/auth-token";
 import { CategoryMegaMenu } from "@/components/CategoryMegaMenu";
 
 function HeaderContent({ initialUser }: { initialUser?: SessionUser | null }) {
   const { role, user, logout, switchDemoRole } = useRole();
+  const { favoriteCount } = useFavorites();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -107,8 +109,38 @@ function HeaderContent({ initialUser }: { initialUser?: SessionUser | null }) {
             </div>
           </form>
 
-          {/* Sağ: Sepet Butonu & Oturum Durumu (Hesabım / Çıkış veya Giriş / Kayıt) */}
+          {/* Sağ: Favorilerim, Sepet Butonu & Oturum Durumu */}
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            {/* Favorilerim Butonu */}
+            <Link
+              href="/favorites"
+              className="relative inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 flex-shrink-0 whitespace-nowrap"
+              title="Favorilerim"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className={`h-4 w-4 transition-colors ${
+                  favoriteCount > 0 ? "fill-rose-500 text-rose-500" : "text-gray-500"
+                }`}
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                fill={favoriteCount > 0 ? "currentColor" : "none"}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                />
+              </svg>
+              <span className="hidden sm:inline">Favorilerim</span>
+              {favoriteCount > 0 && (
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white shadow-xs">
+                  {favoriteCount}
+                </span>
+              )}
+            </Link>
+
             {/* Sepet Butonu */}
             <Link
               href="/cart"
@@ -383,6 +415,23 @@ function HeaderContent({ initialUser }: { initialUser?: SessionUser | null }) {
               className="px-3 py-2 rounded-lg text-sm font-semibold text-purple-700 hover:bg-purple-50"
             >
               📅 Kiralık Ekipmanlar
+            </Link>
+
+            {/* Favorilerim */}
+            <Link
+              href="/favorites"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-semibold text-rose-700 hover:bg-rose-50"
+            >
+              <span className="flex items-center gap-2">
+                <span>❤️</span>
+                <span>Favorilerim</span>
+              </span>
+              {favoriteCount > 0 && (
+                <span className="rounded-full bg-rose-500 px-2 py-0.5 text-xs font-bold text-white shadow-xs">
+                  {favoriteCount}
+                </span>
+              )}
             </Link>
 
             {/* Müşteri ve Satıcı: Siparişlerim */}

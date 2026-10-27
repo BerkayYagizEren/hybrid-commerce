@@ -82,9 +82,9 @@ async function runTrendyolProductCardTests() {
     assert(cardContent.includes("product.name"), "Ürün başlığı kartta mevcut");
     assert(cardContent.includes("formatCurrency"), "Ürün fiyatı kartta gösteriliyor");
 
-    // 2.2 Kaldırılan Rozetlerin Temizlik Doğrulaması (Kullanıcı İsteği: Sadeleştirme)
+    // 2.2 Rozet ve Buton Kontrolleri
     assert(!cardContent.includes("Çok Al Az Öde"), "'Çok Al Az Öde' pazarlama rozeti karttan başarıyla kaldırıldı");
-    assert(!cardContent.includes("isFavorite"), "Favori kalp butonu ve state'i karttan tamamen temizlendi");
+    assert(cardContent.includes("FavoriteButton"), "Favori kalp butonu (FavoriteButton) kart bileşenine başarıyla entegre edildi");
     assert(!cardContent.includes("showBadges"), "Gereksiz showBadges prop'u temizlendi");
     assert(!cardContent.includes("Çok Satan"), "'Çok Satan' rozeti temizlendi");
 

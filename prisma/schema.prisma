@@ -29,6 +29,7 @@ model User {
   rentals   Rental[]
   cart      Cart?
   reviews   Review[]
+  favorites Favorite[]
 
   // Satıcı / Vendor ilişkileri (Vendor'ın listelediği ürünler)
   products  Product[]  @relation("VendorProducts")
@@ -82,6 +83,7 @@ model Product {
   averageRating Float?    @default(0) @map("average_rating")
   reviewCount   Int       @default(0) @map("review_count")
   reviews       Review[]
+  favorites     Favorite[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -431,4 +433,24 @@ model Review {
   @@index([userId])
   @@index([status])
   @@map("reviews")
+}
+
+// ─────────────────────────────────────────────
+// Favoriler & İstek Listesi (Favorites / Wishlist)
+// ─────────────────────────────────────────────
+model Favorite {
+  id        String   @id @default(cuid())
+
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  productId String   @map("product_id")
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+  @@map("favorites")
 }

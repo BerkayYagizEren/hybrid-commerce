@@ -5,6 +5,7 @@ import type { PaymentCardData } from "@/features/payment/types";
 export interface CheckoutRequest {
   userId: string;
   cartId: string;
+  paymentMethod?: "CREDIT_CARD" | "B2B_CREDIT";
   /** Kart ödeme bilgileri (Stripe / Iyzico Sandbox) */
   paymentCard?: PaymentCardData;
   shippingAddress?: ShippingAddress;

@@ -27,6 +27,7 @@ export interface CreateProductInput {
   categoryName?: string;
   categoryId?: string;
   subCategoryId?: string;
+  measurementId?: string;
 }
 
 export interface UpdateProductInput {
@@ -41,6 +42,7 @@ export interface UpdateProductInput {
   rentalQuantity?: number;
   categoryId?: string;
   subCategoryId?: string;
+  measurementId?: string;
 }
 
 function slugify(text: string): string {
@@ -123,6 +125,7 @@ export async function createVendorProduct(data: CreateProductInput) {
           salePrice: data.salePrice || (data.type === "RENTAL" ? null : 1000),
           categoryId: targetCategoryId,
           subCategoryId: targetSubCategoryId || null,
+          measurementId: data.measurementId || null,
           vendorId: vendor.id,
           images: resolvedImages,
         },
@@ -196,6 +199,7 @@ export async function updateVendorProduct(data: UpdateProductInput) {
         ...(salePrice !== undefined ? { salePrice } : {}),
         ...(categoryId !== undefined ? { categoryId: categoryId || null } : {}),
         ...(subCategoryId !== undefined ? { subCategoryId: subCategoryId || null } : {}),
+        ...(data.measurementId !== undefined ? { measurementId: data.measurementId || null } : {}),
       };
 
       if (imageUrl && imageUrl.trim()) {
@@ -265,6 +269,7 @@ export async function updateVendorProduct(data: UpdateProductInput) {
 export async function getVendorProductsList() {
   try {
     const products = await prisma.product.findMany({
+      where: { isDeleted: false },
       include: {
         inventory: true,
         rentalPricing: true,
@@ -308,6 +313,43 @@ export async function getVendorProductsList() {
   }
 }
 
+
+/**
+ * Ürünü fiziksel silmek yerine yumuşak siler (Soft Delete: isDeleted = true)
+ */
+export async function deleteProductAction(productId: string) {
+  try {
+    if (!productId) {
+      return { success: false, error: "Geçersiz ürün kimliği." };
+    }
+
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+    });
+
+    if (!product) {
+      return { success: false, error: "Silinmek istenen ürün bulunamadı." };
+    }
+
+    await prisma.product.update({
+      where: { id: productId },
+      data: { isDeleted: true, active: false },
+    });
+
+    safeRevalidate("/products");
+    safeRevalidate("/vendor/dashboard");
+    safeRevalidate("/vendor/products");
+    safeRevalidate("/admin/dashboard");
+
+    return {
+      success: true,
+      message: `"${product.name}" ürünü başarıyla yumuşak silindi (Arşivlendi).`,
+    };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Ürün silinemedi.";
+    return { success: false, error: msg };
+  }
+}
 
 export interface UpdateProductStockInput {
   productId: string;

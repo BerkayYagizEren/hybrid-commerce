@@ -19,7 +19,7 @@ export class ProductService {
     const { type, categorySlug, subCategorySlug, search, minPrice, maxPrice, page = 1, limit = 12 } = params;
     const skip = (page - 1) * limit;
 
-    const where: any = { active: true };
+    const where: any = { active: true, isDeleted: false };
     const andConditions: any[] = [];
 
     if (type) where.type = type;
@@ -116,8 +116,8 @@ export class ProductService {
    * Slug ile tekil ürün getir (Decimal alanları serileştirilmiş)
    */
   static async getBySlug(slug: string): Promise<SerializedProduct | null> {
-    const p = await prisma.product.findUnique({
-      where: { slug },
+    const p = await prisma.product.findFirst({
+      where: { slug, isDeleted: false },
       include: {
         category: true,
         subCategory: true,
@@ -158,8 +158,8 @@ export class ProductService {
    * ID ile tekil ürün getir (Decimal alanları serileştirilmiş)
    */
   static async getById(id: string): Promise<SerializedProduct | null> {
-    const p = await prisma.product.findUnique({
-      where: { id },
+    const p = await prisma.product.findFirst({
+      where: { id, isDeleted: false },
       include: {
         category: true,
         subCategory: true,

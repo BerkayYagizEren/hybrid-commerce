@@ -97,6 +97,18 @@ export class RentalService {
         },
       });
 
+      // Çakışma motoru için kalıcı RentalReservation oluştur
+      await client.rentalReservation.create({
+        data: {
+          productId,
+          startDate,
+          endDate,
+          userId,
+          rentalId: newRental.id,
+          status: "CONFIRMED",
+        },
+      });
+
       return newRental;
     };
 

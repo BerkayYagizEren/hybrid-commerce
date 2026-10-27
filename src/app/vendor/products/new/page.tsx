@@ -5,11 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createVendorProduct } from "@/features/vendor/actions/vendor.actions";
 import { getAllCategories } from "@/features/categories/actions/category.actions";
+import { getMeasurements, type MeasurementItem } from "@/features/measurement/actions/measurement.actions";
 import type { CategoryItem } from "@/features/categories/types";
 
 export default function NewVendorProductPage() {
   const router = useRouter();
   const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [measurements, setMeasurements] = useState<MeasurementItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +22,7 @@ export default function NewVendorProductPage() {
     type: "BOTH" as "SALE" | "RENTAL" | "BOTH",
     categoryId: "",
     subCategoryId: "",
+    measurementId: "",
     images: [
       "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=1000&q=80",
     ],
@@ -31,8 +34,11 @@ export default function NewVendorProductPage() {
   });
 
   useEffect(() => {
-    getAllCategories()
-      .then(setCategories)
+    Promise.all([getAllCategories(), getMeasurements()])
+      .then(([cats, meas]) => {
+        setCategories(cats);
+        setMeasurements(meas);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -76,6 +82,7 @@ export default function NewVendorProductPage() {
         rentalQuantity: parseInt(form.rentalQuantity || "0"),
         categoryId: form.categoryId || undefined,
         subCategoryId: form.subCategoryId || undefined,
+        measurementId: form.measurementId || undefined,
       });
 
       if (res.success) {
@@ -181,6 +188,37 @@ export default function NewVendorProductPage() {
                   ))}
                 </select>
               </div>
+            </div>
+
+            {/* Ölçü Birimi (Measurement) Seçimi */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700">
+                  Ölçü Birimi (Birim Tipi)
+                </label>
+                <Link
+                  href="/admin/measurements"
+                  target="_blank"
+                  className="text-[11px] font-semibold text-blue-600 hover:underline"
+                >
+                  + Yeni Birim Tanımla
+                </Link>
+              </div>
+              <select
+                value={form.measurementId}
+                onChange={(e) => setForm({ ...form, measurementId: e.target.value })}
+                className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs font-medium text-gray-900 focus:border-purple-500 focus:outline-none"
+              >
+                <option value="">— Ölçü Birimi Seçin (Opsiyonel) —</option>
+                {measurements.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    📐 {m.name} ({m.code})
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-[11px] text-gray-400">
+                Ürünün satış veya kiralamada hangi birim üzerinden işlem göreceğini belirler (Örn: Adet, Metre, Günlük Paket).
+              </p>
             </div>
 
             {/* Çoklu Görseller */}

@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { RentalService } from "@/features/rental/services/rental.service";
 import { CartService } from "@/features/cart/services/cart.service";
+import { WarehouseService } from "@/features/warehouse/services/warehouse.service";
 import {
   PaymentGatewayService,
   validateCreditCard,
@@ -18,7 +19,7 @@ export class CheckoutService {
    * Checkout işlemini gerçekleştir
    */
   static async process(request: CheckoutRequest): Promise<CheckoutResult> {
-    const { userId, cartId, paymentCard } = request;
+    const { userId, cartId, paymentCard, paymentMethod } = request;
 
     try {
       // 1. Sepet özetini al
@@ -28,7 +29,30 @@ export class CheckoutService {
         return { success: false, error: "Sepetinizde ürün bulunmamaktadır." };
       }
 
-      const productTotal = summary.saleSubtotal + summary.rentalSubtotal;
+      // ── B2B Bayi Finansal & İskonto Kontrolü ──
+      const dealer = await prisma.dealerFinancial.findUnique({
+        where: { userId },
+      });
+
+      const b2bDiscountRate = dealer ? Number(dealer.discountRate || 0) : 0;
+      const b2bDiscountAmount = b2bDiscountRate > 0
+        ? Math.round(((summary.saleSubtotal * b2bDiscountRate) / 100) * 100) / 100
+        : 0;
+
+      const effectiveProductTotal = Math.max(0, summary.saleSubtotal - b2bDiscountAmount) + summary.rentalSubtotal;
+      const effectiveGrandTotal = Math.max(0, summary.grandTotal - b2bDiscountAmount);
+
+      if (dealer) {
+        const creditLimit = Number(dealer.creditLimit || 0);
+        const currentBalance = Number(dealer.currentBalance || 0);
+        if (currentBalance + effectiveGrandTotal > creditLimit) {
+          throw new Error(
+            `Kredi Limiti Yetersiz: Sipariş tutarı (${effectiveGrandTotal.toFixed(2)} TL), mevcut kredi limitinizi (${(creditLimit - currentBalance).toFixed(2)} TL kullanılabilir) aşmaktadır.`
+          );
+        }
+      }
+
+      const productTotal = effectiveProductTotal;
       const depositTotal = summary.totalDeposit;
       const rentalIds: string[] = [];
 
@@ -37,13 +61,25 @@ export class CheckoutService {
         const newOrder = await tx.order.create({
           data: {
             userId,
-            totalAmount: summary.grandTotal,
+            totalAmount: effectiveGrandTotal,
             status: "PENDING",
           },
         });
 
+        // Eğer B2B bayisi ise cari hesaba borçlandır (Bakiyeyi artır)
+        if (dealer) {
+          await tx.dealerFinancial.update({
+            where: { userId },
+            data: { currentBalance: { increment: effectiveGrandTotal } },
+          });
+        }
+
         for (const item of summary.items) {
           if (item.type === "SALE") {
+            const itemDiscount = b2bDiscountRate > 0 ? (item.unitPrice * b2bDiscountRate) / 100 : 0;
+            const effectiveUnitPrice = Math.max(0, item.unitPrice - itemDiscount);
+            const effectiveTotalPrice = effectiveUnitPrice * item.quantity;
+
             // ── Satış Kalemi Snapshot ──
             await tx.orderItem.create({
               data: {
@@ -51,11 +87,11 @@ export class CheckoutService {
                 productId: item.productId,
                 type: "SALE",
                 quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                totalPrice: item.totalPrice,
+                unitPrice: effectiveUnitPrice,
+                totalPrice: effectiveTotalPrice,
                 productName: item.productName,
                 productImage: item.productImage,
-                priceAtPurchase: item.unitPrice,
+                priceAtPurchase: effectiveUnitPrice,
               },
             });
 
@@ -66,6 +102,26 @@ export class CheckoutService {
                 reservedStock: { increment: item.quantity },
               },
             });
+
+            // Çoklu Depo Stok Kontrolü ve Düşümü
+            const defaultWh = await WarehouseService.getOrCreateDefaultWarehouse(tx);
+            const stockRecord = await tx.stock.findUnique({
+              where: {
+                productId_warehouseId: { productId: item.productId, warehouseId: defaultWh.id },
+              },
+            });
+
+            if (stockRecord) {
+              if (stockRecord.quantity < item.quantity) {
+                throw new Error(
+                  `Stok Yetersiz: "${item.productName}" için depoda yeterli stok bulunmuyor (Mevcut: ${stockRecord.quantity}, İstenen: ${item.quantity}).`
+                );
+              }
+              await tx.stock.update({
+                where: { id: stockRecord.id },
+                data: { quantity: { decrement: item.quantity } },
+              });
+            }
           } else {
             // ── Kiralama Kalemi Snapshot & Availability Lock ──
             const rental = await RentalService.create(
@@ -100,12 +156,43 @@ export class CheckoutService {
         return newOrder;
       });
 
-      // 4. Ödeme Sağlayıcıyı Tetikle (Stripe / Iyzico Sandbox)
+      // 4. Ödeme İşlemi
+      // B2B Kredisi (Cari Hesap) ile ödeme veya Kredi Kartı
+      if (paymentMethod === "B2B_CREDIT" || (dealer && !paymentCard)) {
+        await prisma.order.update({
+          where: { id: order.id },
+          data: { status: "PAID" },
+        });
+
+        const payment = await prisma.payment.create({
+          data: {
+            orderId: order.id,
+            amount: effectiveGrandTotal,
+            currency: "TRY",
+            status: "SUCCEEDED",
+            cardLast4: "B2B",
+            cardBrand: "B2B_CREDIT",
+          },
+        });
+
+        await CartService.clear(cartId);
+
+        return {
+          success: true,
+          orderId: order.id,
+          totalAmount: effectiveGrandTotal,
+          productTotal,
+          depositTotal,
+          paymentId: payment.id,
+          cardBrand: "B2B_CREDIT",
+        };
+      }
+
       // Satış için Direct Charge, Kiralama Depozitosu için Hold / Pre-auth
       const paymentResult = await PaymentGatewayService.processPayment({
         orderId: order.id,
         userId,
-        grandTotal: summary.grandTotal,
+        grandTotal: effectiveGrandTotal,
         productTotal,
         depositTotal,
         rentalIds,
@@ -127,12 +214,19 @@ export class CheckoutService {
             data: { status: "FAILED" },
           });
 
+          if (dealer) {
+            await prisma.dealerFinancial.update({
+              where: { userId },
+              data: { currentBalance: { decrement: effectiveGrandTotal } },
+            });
+          }
+
           // Başarısız ödeme kaydı oluştur
           const rawNum = paymentCard?.cardNumber?.replace(/\s/g, "") || "";
           await prisma.payment.create({
             data: {
               orderId: order.id,
-              amount: summary.grandTotal,
+              amount: effectiveGrandTotal,
               currency: "TRY",
               status: "FAILED",
               errorMessage: paymentResult.error,

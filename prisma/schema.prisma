@@ -30,6 +30,7 @@ model User {
   cart      Cart?
   reviews   Review[]
   favorites Favorite[]
+  dealerFinancial DealerFinancial?
 
   // Satıcı / Vendor ilişkileri (Vendor'ın listelediği ürünler)
   products  Product[]  @relation("VendorProducts")
@@ -59,6 +60,15 @@ model Product {
   type        ProductType
   salePrice   Decimal?    @map("sale_price") @db.Decimal(10, 2)
   active      Boolean     @default(true)
+  isDeleted   Boolean     @default(false) @map("is_deleted")
+
+  // Marka İlişkisi
+  brandId String? @map("brand_id")
+  brand   Brand?  @relation(fields: [brandId], references: [id], onDelete: SetNull)
+
+  // Ölçü Birimi İlişkisi
+  measurementId String?      @map("measurement_id")
+  measurement   Measurement? @relation(fields: [measurementId], references: [id], onDelete: SetNull)
 
   // Ana Kategori ve Alt Kategori İlişkileri
   categoryId    String?   @map("category_id")
@@ -78,6 +88,13 @@ model Product {
   orderItems   OrderItem[]
   rentals      Rental[]
   availability RentalAvailability[]
+
+  // Çoklu Depo Stokları
+  stocks Stock[]
+
+  // Vitrinler ve Rezervasyonlar
+  showcaseItems      ShowcaseItem[]
+  rentalReservations RentalReservation[]
 
   // Değerlendirmeler & Puanlama
   averageRating Float?    @default(0) @map("average_rating")
@@ -101,6 +118,7 @@ model Category {
   name        String
   slug        String     @unique
   description String?
+  isDeleted   Boolean    @default(false) @map("is_deleted")
 
   // Self-Relation (Kendi Kendine İlişki): Ana ve Alt Kategoriler
   parentId    String?    @map("parent_id")
@@ -453,4 +471,182 @@ model Favorite {
   @@index([userId])
   @@index([productId])
   @@map("favorites")
+}
+
+// ─────────────────────────────────────────────
+// ADIM 1 & 2: Marka ve Ölçü Birimi Modelleri
+// ─────────────────────────────────────────────
+model Brand {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String    @unique
+  isDeleted Boolean   @default(false) @map("is_deleted")
+  products  Product[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@map("brands")
+}
+
+model Measurement {
+  id        String    @id @default(cuid())
+  name      String
+  code      String    @unique
+  products  Product[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@map("measurements")
+}
+
+// ─────────────────────────────────────────────
+// ADIM 3: İndirim ve Kupon Motoru (Coupon)
+// ─────────────────────────────────────────────
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+model Coupon {
+  id              String       @id @default(cuid())
+  code            String       @unique
+  discountType    DiscountType @default(PERCENTAGE) @map("discount_type")
+  discountValue   Decimal      @map("discount_value") @db.Decimal(10, 2)
+  minBasketAmount Decimal      @default(0) @map("min_basket_amount") @db.Decimal(10, 2)
+  expiresAt       DateTime?    @map("expires_at")
+  isActive        Boolean      @default(true) @map("is_active")
+
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @default(now()) @updatedAt @map("updated_at")
+
+  @@map("coupons")
+}
+
+// ─────────────────────────────────────────────
+// ADIM 4: Admin Kontrollü Dinamik Ana Sayfa Vitrinleri
+// ─────────────────────────────────────────────
+model Slider {
+  id        String   @id @default(cuid())
+  title     String
+  subtitle  String?
+  imageUrl  String   @map("image_url")
+  linkUrl   String?  @map("link_url")
+  order     Int      @default(0)
+  isActive  Boolean  @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("sliders")
+}
+
+model InstagramPost {
+  id        String   @id @default(cuid())
+  postUrl   String   @map("post_url")
+  imageUrl  String   @map("image_url")
+  caption   String?
+  order     Int      @default(0)
+  isActive  Boolean  @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("instagram_posts")
+}
+
+enum ShowcaseType {
+  TREND
+  BEST_SELLER
+  NEW_ARRIVALS
+}
+
+model ShowcaseItem {
+  id        String       @id @default(cuid())
+  type      ShowcaseType
+  productId String       @map("product_id")
+  product   Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order     Int          @default(0)
+
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @default(now()) @updatedAt @map("updated_at")
+
+  @@index([type])
+  @@map("showcase_items")
+}
+
+// ─────────────────────────────────────────────
+// ADIM 5: Çoklu Depo ve Şube Yönetimi
+// ─────────────────────────────────────────────
+model Warehouse {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  isDefault Boolean  @default(false) @map("is_default")
+  address   String?
+  stocks    Stock[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("warehouses")
+}
+
+model Stock {
+  id          String    @id @default(cuid())
+  productId   String    @map("product_id")
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouseId String    @map("warehouse_id")
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  quantity    Int       @default(0)
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([productId, warehouseId])
+  @@map("stocks")
+}
+
+// ─────────────────────────────────────────────
+// ADIM 6: B2B Bayi Finansal Altyapısı
+// ─────────────────────────────────────────────
+model DealerFinancial {
+  id             String   @id @default(cuid())
+  userId         String   @unique @map("user_id")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creditLimit    Decimal  @default(0) @map("credit_limit") @db.Decimal(12, 2)
+  currentBalance Decimal  @default(0) @map("current_balance") @db.Decimal(12, 2)
+  discountRate   Decimal  @default(0) @map("discount_rate") @db.Decimal(5, 2)
+
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("dealer_financials")
+}
+
+// ─────────────────────────────────────────────
+// ADIM 7: Gelişmiş Kiralama Çakışma Motoru
+// ─────────────────────────────────────────────
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+model RentalReservation {
+  id        String            @id @default(cuid())
+  productId String            @map("product_id")
+  product   Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  startDate DateTime          @map("start_date")
+  endDate   DateTime          @map("end_date")
+  status    ReservationStatus @default(CONFIRMED)
+  rentalId  String?           @map("rental_id")
+  userId    String?           @map("user_id")
+
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @default(now()) @updatedAt @map("updated_at")
+
+  @@index([productId, startDate, endDate])
+  @@map("rental_reservations")
 }

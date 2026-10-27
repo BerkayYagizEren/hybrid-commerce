@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import type { AddToCartRequest, CartItemDisplay, CartSummary } from "../types";
 import { RentalPricingService } from "@/features/rental/services/pricing.service";
+import { AvailabilityService } from "@/features/rental/services/availability.service";
 import { daysBetween } from "@/shared/utils/format";
 
 /**
@@ -107,10 +108,22 @@ export class CartService {
   static async addItem(cartId: string, request: AddToCartRequest) {
     const { productId, type, quantity = 1, rentalStart, rentalEnd } = request;
 
-    // Kiralama kalemi için tarih aralığı zorunlu
+    // Kiralama kalemi için tarih aralığı zorunlu ve çakışma kontrolü
     if (type === "RENTAL") {
       if (!rentalStart || !rentalEnd) {
         throw new Error("Kiralama için başlangıç ve bitiş tarihi gereklidir");
+      }
+      const startStr = typeof rentalStart === "string" ? rentalStart : new Date(rentalStart).toISOString();
+      const endStr = typeof rentalEnd === "string" ? rentalEnd : new Date(rentalEnd).toISOString();
+
+      const availability = await AvailabilityService.check({
+        productId,
+        startDate: startStr,
+        endDate: endStr,
+      });
+
+      if (!availability.available) {
+        throw new Error("Kiralama Çakışması: Seçilen tarih aralığında ürün daha önce rezerve edilmiştir.");
       }
     }
 

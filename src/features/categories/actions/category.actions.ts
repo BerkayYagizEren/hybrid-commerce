@@ -50,9 +50,10 @@ function slugify(text: string): string {
 export async function getCategoriesTree(): Promise<CategoryItem[]> {
   try {
     const categories = await prisma.category.findMany({
-      where: { parentId: null },
+      where: { parentId: null, isDeleted: false },
       include: {
         children: {
+          where: { isDeleted: false },
           include: {
             _count: {
               select: {
@@ -87,6 +88,7 @@ export async function getCategoriesTree(): Promise<CategoryItem[]> {
 export async function getAllCategories(): Promise<CategoryItem[]> {
   try {
     const categories = await prisma.category.findMany({
+      where: { isDeleted: false },
       include: {
         parent: {
           select: {
@@ -298,10 +300,19 @@ export async function deleteCategory(id: string): Promise<CategoryActionResult> 
         });
       }
 
-      // 3. Kategoriyi sil (Cascade ile alt kategoriler de silinir)
-      await tx.category.delete({
+      // 3. Kategoriyi ve alt kategorilerini fiziksel silmek yerine yumuşak sil (Soft Delete)
+      await tx.category.update({
         where: { id },
+        data: { isDeleted: true },
       });
+
+      if (category.children.length > 0) {
+        const childIds = category.children.map((c) => c.id);
+        await tx.category.updateMany({
+          where: { id: { in: childIds } },
+          data: { isDeleted: true },
+        });
+      }
     });
 
     safeRevalidate("/admin/categories");

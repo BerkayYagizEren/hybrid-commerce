@@ -28,6 +28,13 @@
     "test:serialization": "tsx scripts/test-decimal-serialization.ts",
     "test:favorites": "tsx scripts/test-favorites-and-wishlist.ts",
     "test:cart-sync": "tsx scripts/test-wishlist-and-cart-sync.ts",
+    "test:soft-delete": "tsx scripts/test-soft-delete.ts",
+    "test:measurements": "tsx scripts/test-measurements.ts",
+    "test:coupons": "tsx scripts/test-coupons.ts",
+    "test:showcase": "tsx scripts/test-showcase.ts",
+    "test:warehouse-stock": "tsx scripts/test-warehouse-stock.ts",
+    "test:b2b-financials": "tsx scripts/test-b2b-financials.ts",
+    "test:rental-conflict": "tsx scripts/test-rental-conflict.ts",
     "test:master": "tsx scripts/master-e2e-integration-suite.ts",
     "test:all": "tsx scripts/master-e2e-integration-suite.ts"
   },

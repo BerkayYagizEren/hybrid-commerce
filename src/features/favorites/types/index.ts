@@ -23,6 +23,8 @@ export interface SyncFavoritesResult {
 
 export interface FavoritesContextType {
   favoriteIds: string[];
+  favorites?: string[];
+  setFavorites?: (ids: string[]) => void;
   isLoading: boolean;
   isFavorite: (productId: string) => boolean;
   toggleFavorite: (productId: string) => Promise<boolean>;

@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useRouter } from "next/navigation";
 import { logoutAction, demoLoginAction } from "@/features/auth/actions/auth.actions";
 import type { SessionUser } from "@/lib/auth-token";
-import { notifyAuthStateChange, purgeLocalAuthStorage } from "@/shared/utils/auth-events";
+import { notifyAuthStateChange, purgeLocalAuthStorage, queryClient } from "@/shared/utils/auth-events";
 
 export type UserRoleType = "CUSTOMER" | "VENDOR" | "ADMIN";
 
@@ -72,6 +72,7 @@ export function RoleProvider({
     try {
       const res = await demoLoginAction(targetRole);
       if (res.success && res.user) {
+        queryClient.clear();
         setUser(res.user);
         setRoleState(res.user.role);
         localStorage.setItem("hybrid_commerce_role", res.user.role);
@@ -89,6 +90,7 @@ export function RoleProvider({
   const logout = async () => {
     setIsLoading(true);
     try {
+      queryClient.clear();
       await logoutAction();
       setUser(null);
       setRoleState("CUSTOMER");

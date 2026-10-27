@@ -12,6 +12,7 @@ import {
   AUTH_STATE_CHANGE_EVENT,
   FAVORITES_STORAGE_KEYS,
   purgeLocalAuthStorage,
+  queryClient,
 } from "@/shared/utils/auth-events";
 
 export const GUEST_FAVORITES_KEY = "guest_favorites";
@@ -27,7 +28,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   const prevUserRef = useRef<string | null>(null);
 
   /**
-   * İstemci tarafında ilk mount anında yerel depolamadan oku
+   * İstemci tarafında ilk mount anında yerel depolamadan oku.
    * Sadece misafir modundaysa guest_favorites okunur, kullanıcılar arası sızma önlenir.
    */
   useEffect(() => {
@@ -46,6 +47,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * Favori ID'lerini yükleme ve senkronizasyon mekanizması
+   * prisma.favorite.findMany({ where: { userId } }) veritabanı sorgusuyla beslenir.
    */
   const loadFavorites = useCallback(async () => {
     setIsLoading(true);
@@ -87,7 +89,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
             localStorage.setItem(`hybrid_user_favs_${user.id}`, JSON.stringify(finalIds));
           } catch {}
         } else {
-          // Doğrudan o kullanıcının veritabanı favorilerini getir
+          // Doğrudan o kullanıcının veritabanı favorilerini getir (prisma.favorite.findMany)
           const dbIds = await getFavoriteProductIds(user.id);
           setFavoriteIds(dbIds);
           try {
@@ -121,8 +123,10 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
     const currentUserId = user ? user.id : null;
     const prevUserId = prevUserRef.current;
 
-    // 1. Kullanıcı çıkış yaptı (logout): Eski kullanıcının favorilerini ve localStorage'ı temizle
+    // 1. Kullanıcı çıkış yaptı (logout):
+    // Veritabanındaki kayıtlar KESİNLİKLE silinmez; yalnızca React state'i ve istemci önbelleği sıfırlanır!
     if (prevUserId && !currentUserId) {
+      queryClient.clear();
       setFavoriteIds([]);
       try {
         FAVORITES_STORAGE_KEYS.forEach((k) => localStorage.removeItem(k));
@@ -130,8 +134,9 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
       } catch {}
     }
 
-    // 2. Farklı bir hesaba geçildi: Yeni oturuma eski favorilerin sızmasını engelle
+    // 2. Farklı bir hesaba geçildi: Yeni oturuma eski favorilerin sızmasını engellemek için cache tam sıfırlanır
     if (prevUserId && currentUserId && prevUserId !== currentUserId) {
+      queryClient.clear();
       setFavoriteIds([]);
       try {
         FAVORITES_STORAGE_KEYS.forEach((k) => localStorage.removeItem(k));
@@ -148,7 +153,11 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
       const customEvent = e as CustomEvent;
       const action = customEvent.detail?.action;
 
+      // React Query / SWR / In-memory cache temizliği
+      queryClient.clear();
+
       if (action === "LOGOUT") {
+        // Çıkış yapıldığında DB kayıtlarına dokunulmaz, yalnızca React state'i ve yerel cache sıfırlanır
         setFavoriteIds([]);
         try {
           FAVORITES_STORAGE_KEYS.forEach((k) => localStorage.removeItem(k));
@@ -201,7 +210,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   /**
    * Favori Durumunu Değiştir (Toggle)
    * Misafir modunda: localStorage ('guest_favorites')
-   * Giriş yapmış modda: DB Server Action + Optimistic UI
+   * Giriş yapmış modda: Doğrudan PostgreSQL (prisma.favorite) + Optimistic UI
    */
   const toggleFavorite = useCallback(
     async (productId: string): Promise<boolean> => {
@@ -229,7 +238,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
         return willBeFavorite;
       }
 
-      // 3. ÜYE MODU: VERİTABANINA SERVER ACTION KAYDI
+      // 3. ÜYE MODU: VERİTABANINA SERVER ACTION KAYDI (prisma.favorite)
       try {
         const res = await toggleFavoriteAction(productId, user.id);
         if (!res.success) {
@@ -258,6 +267,8 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
     <FavoritesContext.Provider
       value={{
         favoriteIds,
+        favorites: favoriteIds,
+        setFavorites: setFavoriteIds,
         isLoading,
         isFavorite,
         toggleFavorite,

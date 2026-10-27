@@ -2,9 +2,10 @@
 
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/features/auth/actions/auth.actions";
-import { serializeProduct, type SerializedProduct } from "@/features/products/types";
+import type { SerializedProduct } from "@/features/products/types";
 import { revalidatePath } from "next/cache";
 import type { ToggleFavoriteResult, SyncFavoritesResult } from "../types";
+import { FavoritesService } from "../services/favorites.service";
 
 function safeRevalidate(path: string) {
   try {
@@ -15,15 +16,11 @@ function safeRevalidate(path: string) {
 }
 
 /**
- * Giriş yapmış kullanıcının favori ürün ID'lerinin listesini döner
+ * Giriş yapmış kullanıcının favori ürün ID'lerinin listesini döner.
+ * Doğrudan FavoritesService (veritabanı) üzerinden sorgular.
  */
 export async function getFavoriteProductIds(explicitUserId?: string): Promise<string[]> {
   try {
-    if (!prisma?.favorite) {
-      console.warn("prisma.favorite model is not ready yet.");
-      return [];
-    }
-
     let userId = explicitUserId;
     if (!userId) {
       const user = await getCurrentUser();
@@ -31,13 +28,7 @@ export async function getFavoriteProductIds(explicitUserId?: string): Promise<st
       userId = user.id;
     }
 
-    const favorites = await prisma.favorite.findMany({
-      where: { userId },
-      select: { productId: true },
-      orderBy: { createdAt: "desc" },
-    });
-
-    return favorites.map((f) => f.productId);
+    return await FavoritesService.getFavoriteProductIds(userId);
   } catch (error) {
     console.error("getFavoriteProductIds error:", error);
     return [];
@@ -45,15 +36,10 @@ export async function getFavoriteProductIds(explicitUserId?: string): Promise<st
 }
 
 /**
- * Giriş yapmış kullanıcının tüm favori ürünlerini detaylarıyla ve serileştirilmiş döner
+ * Giriş yapmış kullanıcının tüm favori ürünlerini detaylarıyla ve serileştirilmiş döner.
  */
 export async function getFavoriteProducts(explicitUserId?: string): Promise<SerializedProduct[]> {
   try {
-    if (!prisma?.favorite) {
-      console.warn("prisma.favorite model is not ready yet.");
-      return [];
-    }
-
     let userId = explicitUserId;
     if (!userId) {
       const user = await getCurrentUser();
@@ -61,34 +47,7 @@ export async function getFavoriteProducts(explicitUserId?: string): Promise<Seri
       userId = user.id;
     }
 
-    const favorites = await prisma.favorite.findMany({
-      where: { userId },
-      include: {
-        product: {
-          include: {
-            category: true,
-            subCategory: true,
-            inventory: true,
-            rentalPricing: true,
-            vendor: {
-              select: { id: true, name: true },
-            },
-            reviews: {
-              where: { status: "APPROVED" },
-              select: { rating: true },
-            },
-            _count: {
-              select: {
-                reviews: { where: { status: "APPROVED" } },
-              },
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    return favorites.map((f) => serializeProduct(f.product));
+    return await FavoritesService.getFavoriteProducts(userId);
   } catch (error) {
     console.error("getFavoriteProducts error:", error);
     return [];
@@ -96,38 +55,11 @@ export async function getFavoriteProducts(explicitUserId?: string): Promise<Seri
 }
 
 /**
- * Misafir kullanıcıların localStorage'da tutulan ürün ID'leri için ürün detaylarını döner
+ * Misafir kullanıcıların localStorage'da tutulan ürün ID'leri için ürün detaylarını döner.
  */
 export async function getFavoriteProductsByIds(productIds: string[]): Promise<SerializedProduct[]> {
   try {
-    if (!productIds || productIds.length === 0) return [];
-
-    const products = await prisma.product.findMany({
-      where: {
-        id: { in: productIds },
-        active: true,
-      },
-      include: {
-        category: true,
-        subCategory: true,
-        inventory: true,
-        rentalPricing: true,
-        vendor: {
-          select: { id: true, name: true },
-        },
-        reviews: {
-          where: { status: "APPROVED" },
-          select: { rating: true },
-        },
-        _count: {
-          select: {
-            reviews: { where: { status: "APPROVED" } },
-          },
-        },
-      },
-    });
-
-    return products.map((p) => serializeProduct(p));
+    return await FavoritesService.getFavoriteProductsByIds(productIds);
   } catch (error) {
     console.error("getFavoriteProductsByIds error:", error);
     return [];
@@ -135,7 +67,8 @@ export async function getFavoriteProductsByIds(productIds: string[]): Promise<Se
 }
 
 /**
- * Ürünü favorilere ekler veya favorilerden çıkarır (Toggle)
+ * Ürünü favorilere ekler veya favorilerden çıkarır (Toggle).
+ * Doğrudan veritabanında kullanıcının userId değeri ile ilişkilendirilir.
  */
 export async function toggleFavoriteAction(
   productId: string,
@@ -155,61 +88,11 @@ export async function toggleFavoriteAction(
       userId = user.id;
     }
 
-    // Ürün varlık kontrolü
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
-      select: { id: true },
-    });
-
-    if (!product) {
-      return {
-        success: false,
-        isFavorite: false,
-        error: "Favorilenmek istenen ürün bulunamadı.",
-      };
-    }
-
-    if (!prisma?.favorite) {
-      return {
-        success: false,
-        isFavorite: false,
-        error: "Favoriler veritabanı servisi hazırlanıyor.",
-      };
-    }
-
-    const existing = await prisma.favorite.findUnique({
-      where: {
-        userId_productId: {
-          userId,
-          productId,
-        },
-      },
-    });
-
-    if (existing) {
-      await prisma.favorite.delete({
-        where: { id: existing.id },
-      });
+    const result = await FavoritesService.toggleFavorite(userId, productId);
+    if (result.success) {
       safeRevalidate("/favorites");
-      return {
-        success: true,
-        isFavorite: false,
-        message: "Ürün favorilerinizden kaldırıldı.",
-      };
-    } else {
-      await prisma.favorite.create({
-        data: {
-          userId,
-          productId,
-        },
-      });
-      safeRevalidate("/favorites");
-      return {
-        success: true,
-        isFavorite: true,
-        message: "Ürün favorilerinize eklendi.",
-      };
     }
+    return result;
   } catch (error) {
     console.error("toggleFavoriteAction error:", error);
     return {
@@ -221,7 +104,7 @@ export async function toggleFavoriteAction(
 }
 
 /**
- * Misafir modundaki localStorage favorilerini oturum açıldığında veritabanına aktarır (Sync)
+ * Misafir modundaki localStorage favorilerini oturum açıldığında veritabanına aktarır (Sync).
  */
 export async function syncFavoritesAction(
   guestProductIds: string[],
@@ -237,54 +120,11 @@ export async function syncFavoritesAction(
       userId = user.id;
     }
 
-    if (!guestProductIds || guestProductIds.length === 0) {
-      const currentIds = await getFavoriteProductIds(userId);
-      return { success: true, syncedCount: 0, allFavoriteIds: currentIds };
+    const result = await FavoritesService.syncFavorites(userId, guestProductIds);
+    if (result.success) {
+      safeRevalidate("/favorites");
     }
-
-    if (!prisma?.favorite) {
-      return { success: false, syncedCount: 0, allFavoriteIds: [] };
-    }
-
-    // Gerçekte var olan aktif ürünleri filtrele
-    const validProducts = await prisma.product.findMany({
-      where: {
-        id: { in: guestProductIds },
-        active: true,
-      },
-      select: { id: true },
-    });
-
-    let syncedCount = 0;
-    for (const p of validProducts) {
-      try {
-        await prisma.favorite.upsert({
-          where: {
-            userId_productId: {
-              userId,
-              productId: p.id,
-            },
-          },
-          create: {
-            userId,
-            productId: p.id,
-          },
-          update: {},
-        });
-        syncedCount++;
-      } catch {
-        // Zaten ekliyse veya benzersizlik hatasında devam et
-      }
-    }
-
-    const allFavoriteIds = await getFavoriteProductIds(userId);
-    safeRevalidate("/favorites");
-
-    return {
-      success: true,
-      syncedCount,
-      allFavoriteIds,
-    };
+    return result;
   } catch (error) {
     console.error("syncFavoritesAction error:", error);
     return {

@@ -31,6 +31,36 @@ export const FAVORITES_STORAGE_KEYS = [
 ];
 
 /**
+ * React Query / SWR / In-Memory Cache Reset Mekanizması
+ * Hesap değişimlerinde (Account Switching) veya oturum kapatıldığında tüm önbelleği temizler.
+ */
+export const queryClient = {
+  clear: () => {
+    if (typeof window !== "undefined") {
+      try {
+        (window as any).__QUERY_CACHE__ = {};
+        if (
+          typeof (window as any).queryClient?.clear === "function" &&
+          (window as any).queryClient !== queryClient
+        ) {
+          (window as any).queryClient.clear();
+        }
+        if (typeof (window as any).__SWR_CACHE__?.clear === "function") {
+          (window as any).__SWR_CACHE__.clear();
+        }
+      } catch (err) {
+        console.warn("queryClient.clear error:", err);
+      }
+    }
+  },
+};
+
+// Global window üzerine queryClient kaydı
+if (typeof window !== "undefined") {
+  (window as any).queryClient = (window as any).queryClient || queryClient;
+}
+
+/**
  * İstemci tarafında tüm oturum ve kullanıcı önbelleklerini derhal temizler.
  */
 export function purgeLocalAuthStorage(clearUserSpecificFavs: boolean = true) {
@@ -61,12 +91,16 @@ export function purgeLocalAuthStorage(clearUserSpecificFavs: boolean = true) {
 
 /**
  * Oturum durumu değişimini tüm istemci bileşenlerine (CartContext, FavoritesContext, vb.) duyurur.
+ * React Query / SWR cache'ini tam sıfırlar (queryClient.clear()).
  */
 export function notifyAuthStateChange(
   action: AuthStateAction,
   user: { id: string; email?: string; role?: string } | null = null
 ) {
   if (typeof window === "undefined") return;
+
+  // React Query / SWR önbelleğini tamamen sıfırla
+  queryClient.clear();
 
   if (action === "LOGOUT" || action === "ACCOUNT_SWITCH") {
     purgeLocalAuthStorage(action === "LOGOUT");

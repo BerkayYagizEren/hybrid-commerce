@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useRole } from "@/shared/providers/RoleContext";
 import type { SessionUser } from "@/lib/auth-token";
 import {
@@ -29,6 +30,7 @@ export function FavoritesProvider({
   children: React.ReactNode;
   initialUser?: SessionUser | null;
 }) {
+  const router = useRouter();
   const { user: roleUser } = useRole();
   const [currentUser, setCurrentUser] = useState<SessionUser | null>(initialUser);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
@@ -44,89 +46,41 @@ export function FavoritesProvider({
   const isLoggedIn = Boolean(activeUser);
 
   /**
-   * İstemci tarafında ilk mount anında yerel depolamadan oku.
-   * Yalnızca kullanıcı giriş yapmamışsa (!isLoggedIn) guest_favorites okunur.
+   * İstemci tarafında mount anı kontrolü:
+   * Misafir favori modu kaldırıldı. Kullanıcı giriş yapmamışsa yerel depolamadan favori yüklenmez.
    */
   useEffect(() => {
     try {
       if (!isLoggedIn) {
-        const stored = localStorage.getItem(GUEST_FAVORITES_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setFavoriteIds(parsed);
-          }
-        }
+        setFavoriteIds([]);
+        localStorage.removeItem(GUEST_FAVORITES_KEY);
+        FAVORITES_STORAGE_KEYS.forEach((k) => localStorage.removeItem(k));
       }
     } catch {}
   }, [isLoggedIn]);
 
   /**
-   * Favori ID'lerini yükleme ve senkronizasyon mekanizması
-   * Giriş yapılmışken doğrudan Prisma üzerinden veritabanından çeker.
-   * Misafir favorisi varsa kullanıcı favorileriyle merge edip localStorage'ı temizler.
+   * Favori ID'lerini yükleme mekanizması
+   * Yalnızca oturum açılmışken doğrudan Prisma üzerinden veritabanından çeker.
+   * Giriş yapılmamışsa favoriler listesi her zaman boştur.
    */
   const loadFavorites = useCallback(async () => {
     setIsLoading(true);
     try {
       if (activeUser) {
-        // Oturum açan kullanıcı: Eski misafir verisi varsa hesaba aktar (Guest-to-User Merge)
-        let guestIds: string[] = [];
+        // Oturum açan kullanıcının favorilerini doğrudan veritabanından getir
+        const dbIds = await getFavoriteProductIds(activeUser.id);
+        setFavoriteIds(dbIds);
         try {
-          const stored = localStorage.getItem(GUEST_FAVORITES_KEY);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              guestIds = parsed;
-            }
-          }
-        } catch {
-          guestIds = [];
-        }
-
-        if (guestIds.length > 0) {
-          // Misafir favorilerini veritabanındaki kullanıcı favorileriyle birleştir (Merge)
-          const syncRes = await syncFavoritesAction(guestIds, activeUser.id);
-
-          // Hemen ardından misafir localStorage verilerini derhal temizle
-          try {
-            localStorage.removeItem(GUEST_FAVORITES_KEY);
-            localStorage.removeItem(LEGACY_STORAGE_KEY);
-            localStorage.removeItem(CACHE_KEY);
-            FAVORITES_STORAGE_KEYS.forEach((k) => localStorage.removeItem(k));
-          } catch {}
-
-          const finalIds =
-            syncRes.success && syncRes.allFavoriteIds
-              ? syncRes.allFavoriteIds
-              : await getFavoriteProductIds(activeUser.id);
-
-          setFavoriteIds(finalIds);
-          try {
-            localStorage.setItem(`hybrid_user_favs_${activeUser.id}`, JSON.stringify(finalIds));
-          } catch {}
-        } else {
-          // Doğrudan o kullanıcının veritabanı favorilerini getir (prisma.favorite.findMany)
-          const dbIds = await getFavoriteProductIds(activeUser.id);
-          setFavoriteIds(dbIds);
-          try {
-            localStorage.setItem(`hybrid_user_favs_${activeUser.id}`, JSON.stringify(dbIds));
-          } catch {}
-        }
+          localStorage.setItem(`hybrid_user_favs_${activeUser.id}`, JSON.stringify(dbIds));
+        } catch {}
       } else {
-        // Misafir kullanıcı: localStorage'dan oku
+        // Misafir modu kaldırıldı: Oturumu olmayan kullanıcının favori listesi boştur
+        setFavoriteIds([]);
         try {
-          const stored = localStorage.getItem(GUEST_FAVORITES_KEY);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            const ids = Array.isArray(parsed) ? parsed : [];
-            setFavoriteIds(ids);
-          } else {
-            setFavoriteIds([]);
-          }
-        } catch {
-          setFavoriteIds([]);
-        }
+          localStorage.removeItem(GUEST_FAVORITES_KEY);
+          FAVORITES_STORAGE_KEYS.forEach((k) => localStorage.removeItem(k));
+        } catch {}
       }
     } catch (error) {
       console.error("loadFavorites error:", error);
@@ -196,28 +150,6 @@ export function FavoritesProvider({
     return () => window.removeEventListener(AUTH_STATE_CHANGE_EVENT, handleAuthChange);
   }, [loadFavorites]);
 
-  // Sekmeler arası (Cross-tab) senkronizasyon dinleyicisi
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (
-        e.key === GUEST_FAVORITES_KEY ||
-        e.key === LEGACY_STORAGE_KEY ||
-        e.key === CACHE_KEY
-      ) {
-        if (e.newValue && !isLoggedIn) {
-          try {
-            const parsed = JSON.parse(e.newValue);
-            if (Array.isArray(parsed)) {
-              setFavoriteIds(parsed);
-            }
-          } catch {}
-        }
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, [isLoggedIn]);
-
   /**
    * Verilen ürün ID'sinin favorilerde olup olmadığını kontrol eder
    */
@@ -230,40 +162,44 @@ export function FavoritesProvider({
 
   /**
    * Favori Durumunu Değiştir (Toggle)
-   * Misafir modunda: localStorage ('guest_favorites')
+   * Misafir modu kaldırıldı: Kullanıcı oturum açmamışsa localStorage'a ekleme, doğrudan login'e yönlendir
    * Giriş yapmış modda: Doğrudan PostgreSQL (prisma.favorite) + Optimistic UI
    */
   const toggleFavorite = useCallback(
     async (productId: string): Promise<boolean> => {
+      // 1. Giriş Kontrolü ve Yönlendirme:
+      // Kullanıcı oturumu yoksa localStorage'a ekleme yapılmaz, anında giriş sayfasına yönlendirilir
+      if (!activeUser) {
+        if (typeof window !== "undefined") {
+          const currentPath = window.location.pathname + window.location.search;
+          const redirectUrl =
+            currentPath && currentPath !== "/"
+              ? `/login?redirect=${encodeURIComponent(currentPath)}`
+              : "/login?redirect=/favorites";
+          router.push(redirectUrl);
+        }
+        return false;
+      }
+
       const willBeFavorite = !favoriteIds.includes(productId);
       const nextIds = willBeFavorite
         ? [...favoriteIds, productId]
         : favoriteIds.filter((id) => id !== productId);
 
-      // 1. ANLIK OPTIMISTIC UI GÜNCELLEMESİ (Anında renk değişimi)
+      // 2. Anlık Optimistic UI Güncellemesi
       setFavoriteIds(nextIds);
 
-      // 2. MODA GÖRE İZOLE LOCALSTORAGE KAYDI
+      // 3. Kullanıcıya özel önbellek kaydı
       try {
-        if (!activeUser) {
-          localStorage.setItem(GUEST_FAVORITES_KEY, JSON.stringify(nextIds));
-        } else {
-          localStorage.setItem(`hybrid_user_favs_${activeUser.id}`, JSON.stringify(nextIds));
-        }
+        localStorage.setItem(`hybrid_user_favs_${activeUser.id}`, JSON.stringify(nextIds));
       } catch (e) {
         console.error("localStorage favorite save error:", e);
       }
 
-      if (!activeUser) {
-        // Misafir modu anında tamamlandı
-        return willBeFavorite;
-      }
-
-      // 3. ÜYE MODU: VERİTABANINA SERVER ACTION KAYDI (prisma.favorite)
+      // 4. Doğrudan Prisma Veritabanına (prisma.favorite) Kayıt
       try {
         const res = await toggleFavoriteAction(productId, activeUser.id);
         if (!res.success) {
-          // Başarısız olursa eski haline geri döndür (Rollback)
           console.warn("toggleFavoriteAction başarısız, rollback uygulanıyor:", res.error);
           setFavoriteIds(favoriteIds);
           try {
@@ -281,7 +217,7 @@ export function FavoritesProvider({
         return !willBeFavorite;
       }
     },
-    [favoriteIds, activeUser]
+    [favoriteIds, activeUser, router]
   );
 
   return (

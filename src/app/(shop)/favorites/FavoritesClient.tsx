@@ -9,7 +9,6 @@ import { useSession } from "@/features/auth/hooks/useSession";
 import type { SessionUser } from "@/lib/auth-token";
 import {
   getFavoriteProducts,
-  getFavoriteProductsByIds,
 } from "@/features/favorites/actions/favorite.actions";
 import { Badge } from "@/shared/components/ui/Badge";
 import { Button } from "@/shared/components/ui/Button";
@@ -58,6 +57,12 @@ export function FavoritesClient({
     let isCancelled = false;
 
     async function syncList() {
+      // Misafir modu kaldırıldı: Giriş yapılmamışsa ürün yüklenmez
+      if (!isLoggedIn || !user) {
+        setProducts([]);
+        return;
+      }
+
       // Favori listesi tamamen boşsa
       if (favoriteIds.length === 0) {
         setProducts([]);
@@ -66,15 +71,9 @@ export function FavoritesClient({
 
       setLoadingProducts(true);
       try {
-        if (isLoggedIn && user) {
-          // Giriş yapılmış durumdayken favorileri localStorage'dan değil, doğrudan veritabanından çek
-          const fresh = await getFavoriteProducts(user.id);
-          if (!isCancelled) setProducts(fresh);
-        } else {
-          // Misafir kullanıcı: localStorage'daki ID'lere göre ürünleri çek
-          const fresh = await getFavoriteProductsByIds(favoriteIds);
-          if (!isCancelled) setProducts(fresh);
-        }
+        // Giriş yapılmış durumdayken favorileri doğrudan veritabanından çek
+        const fresh = await getFavoriteProducts(user.id);
+        if (!isCancelled) setProducts(fresh);
       } catch (err) {
         console.error("Favoriler güncellenirken hata:", err);
       } finally {
@@ -138,16 +137,8 @@ export function FavoritesClient({
             </p>
           </div>
 
-          {/* Misafir Kullanıcı Uyarısı: Kullanıcı giriş yapmışsa (isLoggedIn) tamamen gizlenir, yalnızca !isLoggedIn iken gösterilir */}
-          {!isLoggedIn ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-3.5 py-2 text-xs text-amber-800 shadow-2xs">
-              <span className="font-bold">💡 Misafir Modu:</span> Favorileriniz bu cihazda saklanır.{" "}
-              <Link href="/login" className="font-bold underline hover:text-amber-900">
-                Giriş yaparsanız
-              </Link>{" "}
-              otomatik olarak hesabınıza aktarılır.
-            </div>
-          ) : (
+          {/* Oturum Açılmışsa: Senkronizasyon Rozeti */}
+          {isLoggedIn && user && (
             <div className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 shadow-2xs">
               <span>☁️</span>
               <span>{user?.name || user?.email} — Hesabınızla Senkronize</span>
@@ -167,37 +158,74 @@ export function FavoritesClient({
       )}
 
       {/* ─────────────────────────────────────────────────────────────
-          3. BOŞ DURUM (EMPTY STATE)
+          3. GİRİŞ YAPILMAMIŞ VEYA BOŞ DURUM (EMPTY STATE)
       ───────────────────────────────────────────────────────────── */}
       {!loadingProducts && !isFavLoading && products.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-gray-200 bg-white py-20 px-6 text-center shadow-xs">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-rose-50 text-rose-400">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-10 w-10 fill-none stroke-current"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
-              />
-            </svg>
+        !isLoggedIn ? (
+          <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-gray-200 bg-white py-20 px-6 text-center shadow-xs">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-rose-50 text-rose-500">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-10 w-10 fill-none stroke-current"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
+                />
+              </svg>
+            </div>
+            <h2 className="mt-5 text-lg font-bold text-gray-900 sm:text-xl">
+              Favorilerinizi Görüntülemek İçin Giriş Yapın
+            </h2>
+            <p className="mt-2 max-w-md text-sm text-gray-500">
+              Favorilerinize ürün eklemek ve kayıtlı ürünlerinizi görmek için lütfen hesabınıza giriş yapın.
+            </p>
+            <div className="mt-6 flex items-center gap-3">
+              <Link href="/login?redirect=/favorites">
+                <Button size="lg" className="rounded-xl px-6 font-bold shadow-md bg-rose-600 hover:bg-rose-700 text-white cursor-pointer">
+                  🔑 Giriş Yap
+                </Button>
+              </Link>
+              <Link href="/signup?redirect=/favorites">
+                <Button size="lg" variant="outline" className="rounded-xl px-6 font-bold cursor-pointer">
+                  Kayıt Ol
+                </Button>
+              </Link>
+            </div>
           </div>
-          <h2 className="mt-5 text-lg font-bold text-gray-900 sm:text-xl">
-            Favori Listeniz Henüz Boş
-          </h2>
-          <p className="mt-2 max-w-md text-sm text-gray-500">
-            Beğendiğiniz satın alınabilir veya kiralık ürünleri üzerlerindeki kalp ikonuna tıklayarak
-            buraya kaydedebilirsiniz.
-          </p>
-          <Link href="/products" className="mt-6">
-            <Button size="lg" className="rounded-xl px-6 font-bold shadow-md">
-              🛍️ Ürünleri Keşfet →
-            </Button>
-          </Link>
-        </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-gray-200 bg-white py-20 px-6 text-center shadow-xs">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-rose-50 text-rose-400">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-10 w-10 fill-none stroke-current"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
+                />
+              </svg>
+            </div>
+            <h2 className="mt-5 text-lg font-bold text-gray-900 sm:text-xl">
+              Favori Listeniz Henüz Boş
+            </h2>
+            <p className="mt-2 max-w-md text-sm text-gray-500">
+              Beğendiğiniz satın alınabilir veya kiralık ürünleri üzerlerindeki kalp ikonuna tıklayarak
+              buraya kaydedebilirsiniz.
+            </p>
+            <Link href="/products" className="mt-6">
+              <Button size="lg" className="rounded-xl px-6 font-bold shadow-md">
+                🛍️ Ürünleri Keşfet →
+              </Button>
+            </Link>
+          </div>
+        )
       )}
 
       {/* ─────────────────────────────────────────────────────────────

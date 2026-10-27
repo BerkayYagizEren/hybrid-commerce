@@ -1,6 +1,8 @@
 "use client";
 
 import { useFavorites } from "../context/FavoritesContext";
+import { useSession } from "@/features/auth/hooks/useSession";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 interface FavoriteButtonProps {
@@ -14,7 +16,9 @@ export function FavoriteButton({
   className = "",
   size = "md",
 }: FavoriteButtonProps) {
-  const { isFavorite, toggleFavorite } = useFavorites();
+  const { isFavorite, toggleFavorite, isLoggedIn } = useFavorites();
+  const session = useSession();
+  const router = useRouter();
   const favorite = isFavorite(productId);
   const [isAnimating, setIsAnimating] = useState(false);
 
@@ -22,6 +26,22 @@ export function FavoriteButton({
     // Kalbe tıklandığında kart yönlendirmesinin (link tıklamasının) tetiklenmemesi için
     e.preventDefault();
     e.stopPropagation();
+
+    // Misafir Modu Kaldırıldı: Kullanıcı oturum açmamışsa localStorage'a ekleme, doğrudan /login sayfasına yönlendir
+    const authenticated = isLoggedIn ?? session?.isLoggedIn ?? false;
+    if (!authenticated) {
+      const currentPath =
+        typeof window !== "undefined"
+          ? window.location.pathname + window.location.search
+          : "";
+      const redirectUrl =
+        currentPath && currentPath !== "/"
+          ? `/login?redirect=${encodeURIComponent(currentPath)}`
+          : "/login?redirect=/favorites";
+
+      router.push(redirectUrl);
+      return;
+    }
 
     setIsAnimating(true);
     await toggleFavorite(productId);

@@ -43,7 +43,7 @@ function HeaderContent({ initialUser }: { initialUser?: SessionUser | null }) {
 
   // SSR'da initialUser, client mount sonrasında context user kullanılır
   const currentUser = user ?? initialUser ?? null;
-  const activeRole = currentUser ? currentUser.role : (role !== "GUEST" ? role : null);
+  const activeRole = currentUser?.role ?? role;
   const isStaff = activeRole === "ADMIN" || activeRole === "VENDOR";
 
   return (

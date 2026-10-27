@@ -113,7 +113,7 @@ export default async function HomePage() {
                 Kullanıcılarımız tarafından en çok ilgi gören ve kiralanan modeller.
               </p>
             </div>
-            <Link href="/products" className="text-xs font-bold text-blue-600 hover:underline">
+            <Link href="/products?showcase=TREND" className="text-xs font-bold text-blue-600 hover:underline">
               Tümünü Gör →
             </Link>
           </div>
@@ -141,7 +141,7 @@ export default async function HomePage() {
                 Güvenle tercih edilen popüler ekipman ve cihazlar.
               </p>
             </div>
-            <Link href="/products" className="text-xs font-bold text-blue-600 hover:underline">
+            <Link href="/products?showcase=BEST_SELLER" className="text-xs font-bold text-blue-600 hover:underline">
               Tümünü Gör →
             </Link>
           </div>
@@ -169,7 +169,7 @@ export default async function HomePage() {
                 Kataloğumuza yeni eklenen en güncel satış ve kiralama ürünleri.
               </p>
             </div>
-            <Link href="/products" className="text-xs font-bold text-blue-600 hover:underline">
+            <Link href="/products?showcase=NEW_ARRIVALS" className="text-xs font-bold text-blue-600 hover:underline">
               Tümünü Gör →
             </Link>
           </div>
@@ -197,7 +197,10 @@ export default async function HomePage() {
                 Özel seçki ve kampanya koleksiyon ürünleri.
               </p>
             </div>
-            <Link href="/products" className="text-xs font-bold text-blue-600 hover:underline">
+            <Link
+              href={`/products?showcase=CUSTOM&title=${encodeURIComponent(group.title)}`}
+              className="text-xs font-bold text-blue-600 hover:underline"
+            >
               Tümünü Gör →
             </Link>
           </div>

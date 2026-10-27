@@ -16,11 +16,31 @@ export class ProductService {
    * Ürünleri filtrele ve listele (pagination destekli)
    */
   static async list(params: ProductFilterParams = {}): Promise<ProductListResult> {
-    const { type, categorySlug, subCategorySlug, search, minPrice, maxPrice, page = 1, limit = 12 } = params;
+    const {
+      type,
+      categorySlug,
+      subCategorySlug,
+      search,
+      minPrice,
+      maxPrice,
+      page = 1,
+      limit = 12,
+      showcaseType,
+      showcaseTitle,
+    } = params;
     const skip = (page - 1) * limit;
 
     const where: any = { active: true, isDeleted: false };
     const andConditions: any[] = [];
+
+    if (showcaseType) {
+      where.showcaseItems = {
+        some: {
+          type: showcaseType,
+          ...(showcaseType === "CUSTOM" && showcaseTitle ? { title: showcaseTitle } : {}),
+        },
+      };
+    }
 
     if (type) where.type = type;
 

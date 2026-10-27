@@ -1,4 +1,4 @@
-import type { Product, Category, Inventory, RentalPricing, ProductType } from "@prisma/client";
+import type { Product, Category, Inventory, RentalPricing, ProductType, ShowcaseType } from "@prisma/client";
 
 /** Ürün ile birlikte ilişkili verileri içeren genişletilmiş tip (Prisma Decimal içerir) */
 export type ProductWithDetails = Product & {
@@ -117,6 +117,8 @@ export interface ProductFilterParams {
   maxPrice?: number;
   page?: number;
   limit?: number;
+  showcaseType?: ShowcaseType;
+  showcaseTitle?: string;
 }
 
 /** Ürün listesi sonucu (pagination ile) */

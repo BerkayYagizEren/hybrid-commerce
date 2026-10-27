@@ -135,9 +135,27 @@ export async function addShowcaseItem(productId: string, type: ShowcaseType = "T
       include: { product: true },
     });
 
+    const serializedItem = {
+      id: item.id,
+      productId: item.productId,
+      type: item.type,
+      order: item.order,
+      createdAt: item.createdAt,
+      product: item.product
+        ? {
+            id: item.product.id,
+            name: item.product.name,
+            slug: item.product.slug,
+            type: item.product.type,
+            images: item.product.images,
+            salePrice: item.product.salePrice ? Number(item.product.salePrice) : null,
+          }
+        : null,
+    };
+
     safeRevalidate("/");
     safeRevalidate("/admin/showcase");
-    return { success: true, item };
+    return { success: true, item: serializedItem };
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Vitrine eklenemedi.";
     return { success: false, error: msg };
@@ -157,10 +175,28 @@ export async function removeShowcaseItem(id: string) {
 
 export async function getAllShowcaseItems() {
   try {
-    return await prisma.showcaseItem.findMany({
+    const items = await prisma.showcaseItem.findMany({
       include: { product: true },
       orderBy: [{ type: "asc" }, { order: "asc" }],
     });
+
+    return items.map((item) => ({
+      id: item.id,
+      productId: item.productId,
+      type: item.type,
+      order: item.order,
+      createdAt: item.createdAt,
+      product: item.product
+        ? {
+            id: item.product.id,
+            name: item.product.name,
+            slug: item.product.slug,
+            type: item.product.type,
+            images: item.product.images,
+            salePrice: item.product.salePrice ? Number(item.product.salePrice) : null,
+          }
+        : null,
+    }));
   } catch {
     return [];
   }

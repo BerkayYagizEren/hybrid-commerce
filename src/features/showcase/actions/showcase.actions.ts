@@ -86,14 +86,20 @@ export async function deleteSlider(id: string) {
 // Vitrin Ürünleri (Showcase Items)
 // ─────────────────────────────────────────────
 export async function getShowcaseProducts(
-  type: ShowcaseType = "TREND"
+  type: ShowcaseType = "TREND",
+  customTitle?: string
 ): Promise<SerializedProduct[]> {
   try {
+    const whereClause: any = {
+      type,
+      product: { isDeleted: false, active: true },
+    };
+    if (type === "CUSTOM" && customTitle) {
+      whereClause.title = customTitle;
+    }
+
     const items = await prisma.showcaseItem.findMany({
-      where: {
-        type,
-        product: { isDeleted: false, active: true },
-      },
+      where: whereClause,
       include: {
         product: {
           include: {
@@ -116,10 +122,66 @@ export async function getShowcaseProducts(
   }
 }
 
-export async function addShowcaseItem(productId: string, type: ShowcaseType = "TREND", order: number = 0) {
+export interface CustomShowcaseGroup {
+  title: string;
+  products: SerializedProduct[];
+}
+
+export async function getCustomShowcases(): Promise<CustomShowcaseGroup[]> {
   try {
+    const items = await prisma.showcaseItem.findMany({
+      where: {
+        type: "CUSTOM",
+        product: { isDeleted: false, active: true },
+      },
+      include: {
+        product: {
+          include: {
+            category: true,
+            subCategory: true,
+            inventory: true,
+            rentalPricing: true,
+            reviews: { where: { status: "APPROVED" }, select: { rating: true } },
+            _count: { select: { reviews: { where: { status: "APPROVED" } } } },
+          },
+        },
+      },
+      orderBy: [{ title: "asc" }, { order: "asc" }],
+    });
+
+    const groupsMap = new Map<string, SerializedProduct[]>();
+    for (const item of items) {
+      const title = item.title || "Özel Vitrin";
+      if (!groupsMap.has(title)) {
+        groupsMap.set(title, []);
+      }
+      groupsMap.get(title)!.push(serializeProduct(item.product));
+    }
+
+    return Array.from(groupsMap.entries()).map(([title, products]) => ({
+      title,
+      products,
+    }));
+  } catch (error) {
+    console.error("getCustomShowcases error:", error);
+    return [];
+  }
+}
+
+export async function addShowcaseItem(
+  productId: string,
+  type: ShowcaseType = "TREND",
+  order: number = 0,
+  title?: string
+) {
+  try {
+    const cleanTitle = type === "CUSTOM" ? (title?.trim() || "Özel Vitrin") : null;
     const existing = await prisma.showcaseItem.findFirst({
-      where: { productId, type },
+      where: {
+        productId,
+        type,
+        ...(cleanTitle ? { title: cleanTitle } : {}),
+      },
     });
 
     if (existing) {
@@ -130,6 +192,7 @@ export async function addShowcaseItem(productId: string, type: ShowcaseType = "T
       data: {
         productId,
         type,
+        title: cleanTitle,
         order,
       },
       include: { product: true },
@@ -139,6 +202,7 @@ export async function addShowcaseItem(productId: string, type: ShowcaseType = "T
       id: item.id,
       productId: item.productId,
       type: item.type,
+      title: item.title,
       order: item.order,
       createdAt: item.createdAt,
       product: item.product
@@ -184,6 +248,7 @@ export async function getAllShowcaseItems() {
       id: item.id,
       productId: item.productId,
       type: item.type,
+      title: item.title,
       order: item.order,
       createdAt: item.createdAt,
       product: item.product

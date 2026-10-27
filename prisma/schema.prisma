@@ -560,11 +560,13 @@ enum ShowcaseType {
   TREND
   BEST_SELLER
   NEW_ARRIVALS
+  CUSTOM
 }
 
 model ShowcaseItem {
   id        String       @id @default(cuid())
   type      ShowcaseType
+  title     String?
   productId String       @map("product_id")
   product   Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
   order     Int          @default(0)

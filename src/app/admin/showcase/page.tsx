@@ -34,7 +34,8 @@ export default function AdminShowcasePage() {
   const [showcaseItems, setShowcaseItems] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [selectedProductId, setSelectedProductId] = useState("");
-  const [selectedType, setSelectedType] = useState<"TREND" | "BEST_SELLER" | "NEW_ARRIVALS">("TREND");
+  const [selectedType, setSelectedType] = useState<"TREND" | "BEST_SELLER" | "NEW_ARRIVALS" | "CUSTOM">("TREND");
+  const [customTitle, setCustomTitle] = useState("");
   const [showcaseSubmitting, setShowcaseSubmitting] = useState(false);
 
   // Instagram
@@ -94,11 +95,23 @@ export default function AdminShowcasePage() {
   const handleAddShowcase = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProductId) return;
+    if (selectedType === "CUSTOM" && !customTitle.trim()) {
+      alert("Lütfen özel vitrin/slider başlığı giriniz.");
+      return;
+    }
     setShowcaseSubmitting(true);
     try {
-      const res = await addShowcaseItem(selectedProductId, selectedType);
+      const res = await addShowcaseItem(
+        selectedProductId,
+        selectedType,
+        0,
+        selectedType === "CUSTOM" ? customTitle.trim() : undefined
+      );
       if (res.success) {
         setSelectedProductId("");
+        if (selectedType === "CUSTOM") {
+          // Keep title or reset
+        }
         await loadAll();
       } else {
         alert(res.error || "Hata");
@@ -313,7 +326,7 @@ export default function AdminShowcasePage() {
                 </select>
               </div>
 
-              <div className="w-48">
+              <div className="w-56">
                 <label className="block text-xs font-semibold text-gray-700 mb-1">Vitrin Bölümü</label>
                 <select
                   value={selectedType}
@@ -323,8 +336,25 @@ export default function AdminShowcasePage() {
                   <option value="TREND">🔥 Trend Ürünler</option>
                   <option value="BEST_SELLER">🏆 Çok Satanlar</option>
                   <option value="NEW_ARRIVALS">✨ Yeni Gelenler</option>
+                  <option value="CUSTOM">🌟 Özel Vitrin / Slider Adı Tanımla...</option>
                 </select>
               </div>
+
+              {selectedType === "CUSTOM" && (
+                <div className="flex-1 min-w-[220px]">
+                  <label className="block text-xs font-semibold text-purple-900 mb-1">
+                    Özel Vitrin / Slider Başlığı *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Örn: kendisinin_koydugu_ad_2, Fırsat Ürünleri"
+                    value={customTitle}
+                    onChange={(e) => setCustomTitle(e.target.value)}
+                    className="w-full rounded-xl border border-purple-300 bg-purple-50/40 px-3 py-2 text-xs font-medium text-purple-950 focus:border-purple-600 focus:outline-none"
+                  />
+                </div>
+              )}
 
               <button
                 type="submit"
@@ -360,6 +390,62 @@ export default function AdminShowcasePage() {
                       ) : (
                         itemsOfType.map((sc) => (
                           <div key={sc.id} className="flex items-center justify-between gap-2 rounded-xl bg-gray-50 p-2">
+                            <span className="text-xs font-semibold text-gray-800 line-clamp-1">
+                              {sc.product?.name}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                await removeShowcaseItem(sc.id);
+                                await loadAll();
+                              }}
+                              className="text-xs text-red-500 hover:text-red-700 px-1"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Özel Vitrin / Slider Grupları */}
+              {Array.from(
+                new Set(
+                  showcaseItems
+                    .filter((i) => i.type === "CUSTOM")
+                    .map((i) => i.title || "Özel Vitrin")
+                )
+              ).map((grpTitle) => {
+                const itemsInGrp = showcaseItems.filter(
+                  (i) => i.type === "CUSTOM" && (i.title || "Özel Vitrin") === grpTitle
+                );
+
+                return (
+                  <div
+                    key={grpTitle}
+                    className="rounded-2xl bg-white p-5 shadow-sm border border-purple-200 space-y-3"
+                  >
+                    <div className="flex items-center justify-between border-b border-purple-100 pb-2">
+                      <h4 className="text-sm font-bold text-purple-900 flex items-center gap-1.5">
+                        <span>🌟</span> <span>{grpTitle}</span>
+                      </h4>
+                      <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-bold text-purple-800">
+                        {itemsInGrp.length}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {itemsInGrp.length === 0 ? (
+                        <p className="text-xs text-gray-400 py-4 text-center">Bu vitrinde ürün yok.</p>
+                      ) : (
+                        itemsInGrp.map((sc) => (
+                          <div
+                            key={sc.id}
+                            className="flex items-center justify-between gap-2 rounded-xl bg-purple-50/50 p-2"
+                          >
                             <span className="text-xs font-semibold text-gray-800 line-clamp-1">
                               {sc.product?.name}
                             </span>

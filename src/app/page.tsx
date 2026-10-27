@@ -3,6 +3,7 @@ import { Button } from "@/shared/components/ui/Button";
 import {
   getActiveSliders,
   getShowcaseProducts,
+  getCustomShowcases,
   getActiveInstagramPosts,
 } from "@/features/showcase/actions/showcase.actions";
 import { ProductCard } from "@/features/products/components/ProductCard";
@@ -13,10 +14,12 @@ export const dynamic = "force-dynamic";
  * Dinamik Admin Vitrinleri ile Zenginleştirilmiş Ana Sayfa
  */
 export default async function HomePage() {
-  const [sliders, trendProducts, bestSellers, instaPosts] = await Promise.all([
+  const [sliders, trendProducts, bestSellers, newArrivals, customShowcases, instaPosts] = await Promise.all([
     getActiveSliders(),
     getShowcaseProducts("TREND"),
     getShowcaseProducts("BEST_SELLER"),
+    getShowcaseProducts("NEW_ARRIVALS"),
+    getCustomShowcases(),
     getActiveInstagramPosts(),
   ]);
 
@@ -150,6 +153,62 @@ export default async function HomePage() {
           </div>
         </section>
       )}
+
+      {/* 4. DİNAMİK VİTRİN: YENİ GELENLER */}
+      {newArrivals.length > 0 && (
+        <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xl">✨</span>
+                <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">
+                  Yeni Gelenler
+                </h2>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Kataloğumuza yeni eklenen en güncel satış ve kiralama ürünleri.
+              </p>
+            </div>
+            <Link href="/products" className="text-xs font-bold text-blue-600 hover:underline">
+              Tümünü Gör →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            {newArrivals.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 5. DİNAMİK VİTRİNLER: ADMİN ÖZEL VİTRİN / SLIDER BÖLÜMLERİ */}
+      {customShowcases.map((group) => (
+        <section key={group.title} className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🌟</span>
+                <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">
+                  {group.title}
+                </h2>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Özel seçki ve kampanya koleksiyon ürünleri.
+              </p>
+            </div>
+            <Link href="/products" className="text-xs font-bold text-blue-600 hover:underline">
+              Tümünü Gör →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            {group.products.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        </section>
+      ))}
 
       {/* 4. NASIL ÇALIŞIR */}
       <section className="bg-white py-14 border-y border-gray-100">

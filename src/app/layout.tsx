@@ -26,7 +26,7 @@ export default async function RootLayout({
       <body className="flex min-h-screen flex-col bg-gray-50 text-gray-900 antialiased">
         <RoleProvider initialUser={user}>
           <CartProvider>
-            <FavoritesProvider>
+            <FavoritesProvider initialUser={user}>
               <Header initialUser={user} />
               <main className="flex-1">{children}</main>
               <Footer />

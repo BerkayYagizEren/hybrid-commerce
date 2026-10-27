@@ -26,6 +26,7 @@ export interface FavoritesContextType {
   favorites?: string[];
   setFavorites?: (ids: string[]) => void;
   isLoading: boolean;
+  isLoggedIn?: boolean;
   isFavorite: (productId: string) => boolean;
   toggleFavorite: (productId: string) => Promise<boolean>;
   favoriteCount: number;

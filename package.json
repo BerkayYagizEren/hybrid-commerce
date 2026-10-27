@@ -38,6 +38,7 @@
     "test:role-ui": "tsx scripts/test-role-ui-visibility.ts",
     "test:isolation": "tsx scripts/test-session-isolation-and-cache-reset.ts",
     "test:favorites-isolation": "tsx scripts/test-favorites-isolation.ts",
+    "test:favorites-auth-sync": "tsx scripts/test-favorites-auth-sync.ts",
     "test:master": "tsx scripts/master-e2e-integration-suite.ts",
     "test:all": "tsx scripts/master-e2e-integration-suite.ts"
   },

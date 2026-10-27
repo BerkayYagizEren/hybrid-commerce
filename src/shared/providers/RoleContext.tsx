@@ -133,3 +133,13 @@ export function useRole() {
   }
   return context;
 }
+
+export function useSession() {
+  const { user, isLoading } = useRole();
+  return {
+    data: user ? { user } : null,
+    user: user ?? null,
+    isLoggedIn: Boolean(user),
+    status: isLoading ? "loading" : user ? "authenticated" : "unauthenticated",
+  };
+}

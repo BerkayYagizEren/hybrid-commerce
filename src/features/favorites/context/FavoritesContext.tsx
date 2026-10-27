@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { useRole } from "@/shared/providers/RoleContext";
+import type { SessionUser } from "@/lib/auth-token";
 import {
   getFavoriteProductIds,
   toggleFavoriteAction,
@@ -21,19 +22,34 @@ export const CACHE_KEY = "hybrid_favorites_cache";
 
 const FavoritesContext = createContext<FavoritesContextType | undefined>(undefined);
 
-export function FavoritesProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useRole();
+export function FavoritesProvider({
+  children,
+  initialUser = null,
+}: {
+  children: React.ReactNode;
+  initialUser?: SessionUser | null;
+}) {
+  const { user: roleUser } = useRole();
+  const [currentUser, setCurrentUser] = useState<SessionUser | null>(initialUser);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const prevUserRef = useRef<string | null>(null);
+  const prevUserRef = useRef<string | null>(initialUser ? initialUser.id : null);
+
+  // Rol veya oturum güncellendiğinde aktif kullanıcıyı senkronize et
+  useEffect(() => {
+    setCurrentUser(roleUser);
+  }, [roleUser]);
+
+  const activeUser = currentUser ?? roleUser ?? initialUser ?? null;
+  const isLoggedIn = Boolean(activeUser);
 
   /**
    * İstemci tarafında ilk mount anında yerel depolamadan oku.
-   * Sadece misafir modundaysa guest_favorites okunur, kullanıcılar arası sızma önlenir.
+   * Yalnızca kullanıcı giriş yapmamışsa (!isLoggedIn) guest_favorites okunur.
    */
   useEffect(() => {
     try {
-      if (!user) {
+      if (!isLoggedIn) {
         const stored = localStorage.getItem(GUEST_FAVORITES_KEY);
         if (stored) {
           const parsed = JSON.parse(stored);
@@ -43,17 +59,18 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch {}
-  }, [user]);
+  }, [isLoggedIn]);
 
   /**
    * Favori ID'lerini yükleme ve senkronizasyon mekanizması
-   * prisma.favorite.findMany({ where: { userId } }) veritabanı sorgusuyla beslenir.
+   * Giriş yapılmışken doğrudan Prisma üzerinden veritabanından çeker.
+   * Misafir favorisi varsa kullanıcı favorileriyle merge edip localStorage'ı temizler.
    */
   const loadFavorites = useCallback(async () => {
     setIsLoading(true);
     try {
-      if (user) {
-        // Oturum açan kullanıcı: Eski misafir verisi varsa ve ilk kez giriş yapılıyorsa aktar
+      if (activeUser) {
+        // Oturum açan kullanıcı: Eski misafir verisi varsa hesaba aktar (Guest-to-User Merge)
         let guestIds: string[] = [];
         try {
           const stored = localStorage.getItem(GUEST_FAVORITES_KEY);
@@ -68,10 +85,10 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (guestIds.length > 0) {
-          // Misafir favorilerini veritabanına aktar
-          const syncRes = await syncFavoritesAction(guestIds, user.id);
+          // Misafir favorilerini veritabanındaki kullanıcı favorileriyle birleştir (Merge)
+          const syncRes = await syncFavoritesAction(guestIds, activeUser.id);
 
-          // Hemen ardından misafir localStorage verilerini derhal sıfırla
+          // Hemen ardından misafir localStorage verilerini derhal temizle
           try {
             localStorage.removeItem(GUEST_FAVORITES_KEY);
             localStorage.removeItem(LEGACY_STORAGE_KEY);
@@ -82,18 +99,18 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
           const finalIds =
             syncRes.success && syncRes.allFavoriteIds
               ? syncRes.allFavoriteIds
-              : await getFavoriteProductIds(user.id);
+              : await getFavoriteProductIds(activeUser.id);
 
           setFavoriteIds(finalIds);
           try {
-            localStorage.setItem(`hybrid_user_favs_${user.id}`, JSON.stringify(finalIds));
+            localStorage.setItem(`hybrid_user_favs_${activeUser.id}`, JSON.stringify(finalIds));
           } catch {}
         } else {
           // Doğrudan o kullanıcının veritabanı favorilerini getir (prisma.favorite.findMany)
-          const dbIds = await getFavoriteProductIds(user.id);
+          const dbIds = await getFavoriteProductIds(activeUser.id);
           setFavoriteIds(dbIds);
           try {
-            localStorage.setItem(`hybrid_user_favs_${user.id}`, JSON.stringify(dbIds));
+            localStorage.setItem(`hybrid_user_favs_${activeUser.id}`, JSON.stringify(dbIds));
           } catch {}
         }
       } else {
@@ -116,11 +133,11 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [activeUser]);
 
   // Oturum durumu değiştiğinde hesap izolasyonu ve favori temizliği
   useEffect(() => {
-    const currentUserId = user ? user.id : null;
+    const currentUserId = activeUser ? activeUser.id : null;
     const prevUserId = prevUserRef.current;
 
     // 1. Kullanıcı çıkış yaptı (logout):
@@ -145,24 +162,28 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
 
     loadFavorites();
     prevUserRef.current = currentUserId;
-  }, [user, loadFavorites]);
+  }, [activeUser, loadFavorites]);
 
   // Global Auth State Change dinleyicisi
   useEffect(() => {
     const handleAuthChange = (e: Event) => {
       const customEvent = e as CustomEvent;
       const action = customEvent.detail?.action;
+      const newUser = customEvent.detail?.user;
 
       // React Query / SWR / In-memory cache temizliği
       queryClient.clear();
 
       if (action === "LOGOUT") {
-        // Çıkış yapıldığında DB kayıtlarına dokunulmaz, yalnızca React state'i ve yerel cache sıfırlanır
+        setCurrentUser(null);
         setFavoriteIds([]);
         try {
           FAVORITES_STORAGE_KEYS.forEach((k) => localStorage.removeItem(k));
         } catch {}
       } else if (action === "ACCOUNT_SWITCH" || action === "LOGIN") {
+        if (newUser) {
+          setCurrentUser(newUser);
+        }
         setFavoriteIds([]);
         try {
           FAVORITES_STORAGE_KEYS.forEach((k) => localStorage.removeItem(k));
@@ -183,7 +204,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
         e.key === LEGACY_STORAGE_KEY ||
         e.key === CACHE_KEY
       ) {
-        if (e.newValue) {
+        if (e.newValue && !isLoggedIn) {
           try {
             const parsed = JSON.parse(e.newValue);
             if (Array.isArray(parsed)) {
@@ -195,7 +216,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
+  }, [isLoggedIn]);
 
   /**
    * Verilen ürün ID'sinin favorilerde olup olmadığını kontrol eder
@@ -224,29 +245,29 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
 
       // 2. MODA GÖRE İZOLE LOCALSTORAGE KAYDI
       try {
-        if (!user) {
+        if (!activeUser) {
           localStorage.setItem(GUEST_FAVORITES_KEY, JSON.stringify(nextIds));
         } else {
-          localStorage.setItem(`hybrid_user_favs_${user.id}`, JSON.stringify(nextIds));
+          localStorage.setItem(`hybrid_user_favs_${activeUser.id}`, JSON.stringify(nextIds));
         }
       } catch (e) {
         console.error("localStorage favorite save error:", e);
       }
 
-      if (!user) {
+      if (!activeUser) {
         // Misafir modu anında tamamlandı
         return willBeFavorite;
       }
 
       // 3. ÜYE MODU: VERİTABANINA SERVER ACTION KAYDI (prisma.favorite)
       try {
-        const res = await toggleFavoriteAction(productId, user.id);
+        const res = await toggleFavoriteAction(productId, activeUser.id);
         if (!res.success) {
           // Başarısız olursa eski haline geri döndür (Rollback)
           console.warn("toggleFavoriteAction başarısız, rollback uygulanıyor:", res.error);
           setFavoriteIds(favoriteIds);
           try {
-            localStorage.setItem(`hybrid_user_favs_${user.id}`, JSON.stringify(favoriteIds));
+            localStorage.setItem(`hybrid_user_favs_${activeUser.id}`, JSON.stringify(favoriteIds));
           } catch {}
           return !willBeFavorite;
         }
@@ -255,12 +276,12 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
         console.error("toggleFavorite error, rollback uygulanıyor:", err);
         setFavoriteIds(favoriteIds);
         try {
-          localStorage.setItem(`hybrid_user_favs_${user.id}`, JSON.stringify(favoriteIds));
+          localStorage.setItem(`hybrid_user_favs_${activeUser.id}`, JSON.stringify(favoriteIds));
         } catch {}
         return !willBeFavorite;
       }
     },
-    [favoriteIds, user]
+    [favoriteIds, activeUser]
   );
 
   return (
@@ -270,6 +291,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
         favorites: favoriteIds,
         setFavorites: setFavoriteIds,
         isLoading,
+        isLoggedIn,
         isFavorite,
         toggleFavorite,
         favoriteCount: favoriteIds.length,

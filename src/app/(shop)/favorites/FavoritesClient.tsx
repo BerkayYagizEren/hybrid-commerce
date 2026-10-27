@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useFavorites } from "@/features/favorites/context/FavoritesContext";
 import { useCart } from "@/features/cart/hooks/useCart";
 import { useRole } from "@/shared/providers/RoleContext";
+import { useSession } from "@/features/auth/hooks/useSession";
+import type { SessionUser } from "@/lib/auth-token";
 import {
   getFavoriteProducts,
   getFavoriteProductsByIds,
@@ -19,15 +21,22 @@ import type { SerializedProduct } from "@/features/products/types";
 interface FavoritesClientProps {
   initialProducts: SerializedProduct[];
   isInitialUser: boolean;
+  initialUser?: SessionUser | null;
 }
 
 export function FavoritesClient({
   initialProducts,
   isInitialUser,
+  initialUser = null,
 }: FavoritesClientProps) {
-  const { user } = useRole();
+  const session = useSession();
+  const { user: roleUser } = useRole();
   const { favoriteIds, isLoading: isFavLoading } = useFavorites();
   const { addToCart, addItem, setIsCartOpen } = useCart();
+
+  // Aktif oturum ve kullanıcı kontrolü: useSession, RoleContext veya SSR initialUser
+  const user = session?.user ?? roleUser ?? initialUser ?? null;
+  const isLoggedIn = Boolean(user);
 
   const [products, setProducts] = useState<SerializedProduct[]>(initialProducts);
   const [loadingProducts, setLoadingProducts] = useState(false);
@@ -57,7 +66,8 @@ export function FavoritesClient({
 
       setLoadingProducts(true);
       try {
-        if (user) {
+        if (isLoggedIn && user) {
+          // Giriş yapılmış durumdayken favorileri localStorage'dan değil, doğrudan veritabanından çek
           const fresh = await getFavoriteProducts(user.id);
           if (!isCancelled) setProducts(fresh);
         } else {
@@ -77,7 +87,7 @@ export function FavoritesClient({
     return () => {
       isCancelled = true;
     };
-  }, [user, favoriteIds]);
+  }, [isLoggedIn, user?.id, favoriteIds]);
 
   // Hızlı sepete ekleme işlemi (useCart addToCart)
   const handleAddToCart = async (product: SerializedProduct) => {
@@ -128,8 +138,8 @@ export function FavoritesClient({
             </p>
           </div>
 
-          {/* Misafir Kullanıcı Uyarısı / Senkronizasyon Rozeti */}
-          {!user ? (
+          {/* Misafir Kullanıcı Uyarısı: Kullanıcı giriş yapmışsa (isLoggedIn) tamamen gizlenir, yalnızca !isLoggedIn iken gösterilir */}
+          {!isLoggedIn ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-3.5 py-2 text-xs text-amber-800 shadow-2xs">
               <span className="font-bold">💡 Misafir Modu:</span> Favorileriniz bu cihazda saklanır.{" "}
               <Link href="/login" className="font-bold underline hover:text-amber-900">
@@ -140,7 +150,7 @@ export function FavoritesClient({
           ) : (
             <div className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 shadow-2xs">
               <span>☁️</span>
-              <span>Hesabınızla Senkronize</span>
+              <span>{user?.name || user?.email} — Hesabınızla Senkronize</span>
             </div>
           )}
         </div>

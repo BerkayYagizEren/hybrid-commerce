@@ -237,6 +237,37 @@ export async function removeShowcaseItem(id: string) {
   }
 }
 
+export async function deleteCustomShowcase(title: string) {
+  try {
+    await prisma.showcaseItem.deleteMany({
+      where: {
+        type: "CUSTOM",
+        title: title,
+      },
+    });
+    safeRevalidate("/");
+    safeRevalidate("/admin/showcase");
+    return { success: true };
+  } catch (error) {
+    console.error("deleteCustomShowcase error:", error);
+    return { success: false, error: "Özel vitrin kaldırılamadı." };
+  }
+}
+
+export async function clearShowcaseByType(type: ShowcaseType) {
+  try {
+    await prisma.showcaseItem.deleteMany({
+      where: { type },
+    });
+    safeRevalidate("/");
+    safeRevalidate("/admin/showcase");
+    return { success: true };
+  } catch (error) {
+    console.error("clearShowcaseByType error:", error);
+    return { success: false, error: "Vitrin temizlenemedi." };
+  }
+}
+
 export async function getAllShowcaseItems() {
   try {
     const items = await prisma.showcaseItem.findMany({

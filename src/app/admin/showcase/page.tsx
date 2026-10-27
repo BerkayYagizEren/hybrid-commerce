@@ -9,6 +9,8 @@ import {
   getAllShowcaseItems,
   addShowcaseItem,
   removeShowcaseItem,
+  deleteCustomShowcase,
+  clearShowcaseByType,
   getActiveInstagramPosts,
   createInstagramPost,
   deleteInstagramPost,
@@ -378,10 +380,31 @@ export default function AdminShowcasePage() {
                 return (
                   <div key={typeKey} className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100 space-y-3">
                     <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                      <h4 className="text-sm font-bold text-gray-900">{titleMap[typeKey]}</h4>
-                      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700">
-                        {itemsOfType.length}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-bold text-gray-900">{titleMap[typeKey]}</h4>
+                        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700">
+                          {itemsOfType.length}
+                        </span>
+                      </div>
+                      {itemsOfType.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (
+                              confirm(
+                                `"${titleMap[typeKey]}" vitrinindeki tüm ürünleri kaldırıp vitrini temizlemek istediğinize emin misiniz?`
+                              )
+                            ) {
+                              await clearShowcaseByType(typeKey);
+                              await loadAll();
+                            }
+                          }}
+                          className="text-[11px] font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-md transition"
+                          title="Vitrindeki tüm ürünleri kaldır"
+                        >
+                          ✕ Vitrini Temizle
+                        </button>
+                      )}
                     </div>
 
                     <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -429,12 +452,31 @@ export default function AdminShowcasePage() {
                     className="rounded-2xl bg-white p-5 shadow-sm border border-purple-200 space-y-3"
                   >
                     <div className="flex items-center justify-between border-b border-purple-100 pb-2">
-                      <h4 className="text-sm font-bold text-purple-900 flex items-center gap-1.5">
-                        <span>🌟</span> <span>{grpTitle}</span>
-                      </h4>
-                      <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-bold text-purple-800">
-                        {itemsInGrp.length}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-bold text-purple-900 flex items-center gap-1.5">
+                          <span>🌟</span> <span>{grpTitle}</span>
+                        </h4>
+                        <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-bold text-purple-800">
+                          {itemsInGrp.length}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (
+                            confirm(
+                              `"${grpTitle}" vitrinini ve içindeki tüm ürünleri tamamen kaldırmak istediğinize emin misiniz?`
+                            )
+                          ) {
+                            await deleteCustomShowcase(grpTitle);
+                            await loadAll();
+                          }
+                        }}
+                        className="text-[11px] font-bold text-red-600 bg-red-50 hover:bg-red-100 hover:text-red-700 px-2.5 py-1 rounded-lg transition border border-red-200"
+                        title="Bu vitrini tamamen kaldır"
+                      >
+                        🗑️ Vitrini Kaldır
+                      </button>
                     </div>
 
                     <div className="space-y-2 max-h-96 overflow-y-auto">

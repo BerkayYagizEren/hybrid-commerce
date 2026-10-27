@@ -93,3 +93,32 @@ export async function checkCreditLimitAction(userId: string, orderTotal: number)
     };
   }
 }
+
+export async function getEligibleUsersForDealerAction() {
+  try {
+    const existing = await prisma.dealerFinancial.findMany({
+      select: { userId: true },
+    });
+    const existingIds = existing.map((d) => d.userId);
+
+    const users = await prisma.user.findMany({
+      where: {
+        id: { notIn: existingIds },
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
+      orderBy: { email: "asc" },
+    });
+
+    return { success: true, data: users };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Kullanıcı listesi alınamadı",
+    };
+  }
+}

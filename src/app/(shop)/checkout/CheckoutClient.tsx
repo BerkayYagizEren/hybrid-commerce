@@ -22,9 +22,19 @@ interface CheckoutSuccessData {
 interface CheckoutClientProps {
   initialSummary: CartSummary | null;
   initialCouponCode?: string;
+  dealerFinancial?: {
+    creditLimit: number;
+    currentBalance: number;
+    availableCredit: number;
+    discountRate: number;
+  } | null;
 }
 
-export function CheckoutClient({ initialSummary, initialCouponCode = "" }: CheckoutClientProps) {
+export function CheckoutClient({
+  initialSummary,
+  initialCouponCode = "",
+  dealerFinancial = null,
+}: CheckoutClientProps) {
   const [summary] = useState<CartSummary | null>(initialSummary);
   const [processing, setProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -255,6 +265,7 @@ export function CheckoutClient({ initialSummary, initialCouponCode = "" }: Check
             onRemoveCoupon={removeCoupon}
             isApplyingCoupon={isApplyingCoupon}
             couponError={couponError}
+            dealerFinancial={dealerFinancial}
           />
         </div>
       </div>

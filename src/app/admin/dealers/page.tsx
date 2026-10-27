@@ -6,6 +6,7 @@ import {
   listDealersAction,
   upsertDealerFinancialAction,
   updateDealerBalanceAction,
+  getEligibleUsersForDealerAction,
 } from "@/features/b2b/actions/b2b.actions";
 import type { DealerFinancialInfo } from "@/features/b2b/services/b2b.service";
 
@@ -17,6 +18,15 @@ export default function AdminDealersPage() {
   const [selectedDealer, setSelectedDealer] = useState<DealerFinancialInfo | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
+  const [isNewDealerModalOpen, setIsNewDealerModalOpen] = useState(false);
+  const [eligibleUsers, setEligibleUsers] = useState<any[]>([]);
+
+  const [newDealerForm, setNewDealerForm] = useState({
+    userId: "",
+    creditLimit: 50000,
+    discountRate: 15,
+    currentBalance: 0,
+  });
 
   const [editFormData, setEditFormData] = useState({
     creditLimit: 0,
@@ -47,6 +57,45 @@ export default function AdminDealersPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const openNewDealerModal = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setIsNewDealerModalOpen(true);
+    const res = await getEligibleUsersForDealerAction();
+    if (res.success && res.data) {
+      setEligibleUsers(res.data);
+      if (res.data.length > 0) {
+        setNewDealerForm((prev) => ({ ...prev, userId: res.data[0].id }));
+      }
+    }
+  };
+
+  const handleCreateDealer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDealerForm.userId) {
+      setErrorMsg("Lütfen bir kullanıcı seçiniz.");
+      return;
+    }
+    setSubmitting(true);
+    setErrorMsg(null);
+    try {
+      const res = await upsertDealerFinancialAction(newDealerForm.userId, {
+        creditLimit: Number(newDealerForm.creditLimit),
+        discountRate: Number(newDealerForm.discountRate),
+        currentBalance: Number(newDealerForm.currentBalance),
+      });
+      if (res.success) {
+        setIsNewDealerModalOpen(false);
+        setSuccessMsg("Yeni B2B bayisi başarıyla tanımlandı.");
+        await loadData();
+      } else {
+        setErrorMsg(res.error || "Bayi oluşturulamadı");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const openEditModal = (dealer: DealerFinancialInfo) => {
     setSelectedDealer(dealer);
@@ -139,6 +188,12 @@ export default function AdminDealersPage() {
               Bayi kredi limitleri, cari borç bakiyeleri ve özel iskonto oranlarını yönetin.
             </p>
           </div>
+          <button
+            onClick={openNewDealerModal}
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition"
+          >
+            <span>+</span> Yeni Bayi Tanımla
+          </button>
         </div>
 
         {/* Mesajlar */}
@@ -415,6 +470,111 @@ export default function AdminDealersPage() {
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold disabled:opacity-50"
                 >
                   {submitting ? "İşleniyor..." : "Uygula"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* New Dealer Modal */}
+      {isNewDealerModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">+ Yeni B2B Bayisi Tanımla</h3>
+            <p className="text-xs text-gray-500 mb-5">
+              Mevcut bir kullanıcıyı B2B bayisi olarak yetkilendirin ve finansal limitlerini belirleyin.
+            </p>
+
+            <form onSubmit={handleCreateDealer} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+                  Kullanıcı Seçin *
+                </label>
+                {eligibleUsers.length === 0 ? (
+                  <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded-lg">
+                    Tüm kayıtlı kullanıcılar zaten bir bayi cari kaydına sahip veya uygun kullanıcı bulunamadı.
+                  </p>
+                ) : (
+                  <select
+                    required
+                    value={newDealerForm.userId}
+                    onChange={(e) => setNewDealerForm({ ...newDealerForm, userId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  >
+                    {eligibleUsers.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name || "İsimsiz"} ({u.email}) - Rol: {u.role}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+                  Kredi Limiti (TL) *
+                </label>
+                <input
+                  type="number"
+                  step="100"
+                  min="0"
+                  required
+                  value={newDealerForm.creditLimit}
+                  onChange={(e) =>
+                    setNewDealerForm({ ...newDealerForm, creditLimit: parseFloat(e.target.value) || 0 })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+                  Özel İskonto Oranı (%) *
+                </label>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  max="100"
+                  required
+                  value={newDealerForm.discountRate}
+                  onChange={(e) =>
+                    setNewDealerForm({ ...newDealerForm, discountRate: parseFloat(e.target.value) || 0 })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+                  Başlangıç Borç Bakiyesi (TL)
+                </label>
+                <input
+                  type="number"
+                  step="100"
+                  min="0"
+                  value={newDealerForm.currentBalance}
+                  onChange={(e) =>
+                    setNewDealerForm({ ...newDealerForm, currentBalance: parseFloat(e.target.value) || 0 })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsNewDealerModalOpen(false)}
+                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                >
+                  İptal
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting || eligibleUsers.length === 0}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold disabled:opacity-50"
+                >
+                  {submitting ? "Kaydediliyor..." : "Bayiyi Kaydet"}
                 </button>
               </div>
             </form>

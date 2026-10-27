@@ -13,6 +13,12 @@ interface OrderSummaryProps {
   onRemoveCoupon?: () => void;
   isApplyingCoupon?: boolean;
   couponError?: string | null;
+  dealerFinancial?: {
+    creditLimit: number;
+    currentBalance: number;
+    availableCredit: number;
+    discountRate: number;
+  } | null;
 }
 
 export function OrderSummary({
@@ -22,11 +28,17 @@ export function OrderSummary({
   onRemoveCoupon,
   isApplyingCoupon,
   couponError,
+  dealerFinancial,
 }: OrderSummaryProps) {
   const [localCode, setLocalCode] = useState("");
   const productTotal = summary.saleSubtotal + summary.rentalSubtotal;
-  const discountAmount = couponResult?.valid ? couponResult.discountAmount : 0;
-  const finalGrandTotal = Math.max(0, summary.grandTotal - discountAmount);
+  const couponDiscountAmount = couponResult?.valid ? couponResult.discountAmount : 0;
+  const b2bDiscountAmount =
+    dealerFinancial && dealerFinancial.discountRate > 0
+      ? Math.round(((summary.saleSubtotal * dealerFinancial.discountRate) / 100) * 100) / 100
+      : 0;
+  const totalDiscounts = couponDiscountAmount + b2bDiscountAmount;
+  const finalGrandTotal = Math.max(0, summary.grandTotal - totalDiscounts);
 
   const handleApply = (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,6 +94,26 @@ export function OrderSummary({
         ))}
       </div>
 
+      {/* B2B Bayi Bilgisi */}
+      {dealerFinancial && (
+        <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50/70 p-3.5 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+              <span>🏢</span> B2B Bayi Cari Hesabı
+            </span>
+            <span className="rounded-full bg-blue-200/80 px-2 py-0.5 text-[10px] font-bold text-blue-800">
+              %{dealerFinancial.discountRate} Bayi İskontosu
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-xs text-blue-950 pt-1 border-t border-blue-200/50">
+            <span className="text-gray-600">Kullanılabilir Limit:</span>
+            <span className="font-bold text-emerald-700">
+              {formatCurrency(dealerFinancial.availableCredit)}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* İndirim Kuponu Giriş Alanı */}
       <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/40 p-3.5">
         <div className="flex items-center justify-between mb-2">
@@ -102,7 +134,7 @@ export function OrderSummary({
         {couponResult?.valid ? (
           <div className="flex items-center justify-between rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-800">
             <span>✅ {couponResult.code} ({couponResult.message || "Uygulandı"})</span>
-            <span className="font-bold text-sm">- {formatCurrency(discountAmount)}</span>
+            <span className="font-bold text-sm">- {formatCurrency(couponDiscountAmount)}</span>
           </div>
         ) : (
           <form onSubmit={handleApply} className="flex gap-2">
@@ -169,11 +201,19 @@ export function OrderSummary({
           </span>
         </div>
 
+        {/* B2B Bayi İskontosu */}
+        {b2bDiscountAmount > 0 && (
+          <div className="flex items-center justify-between text-sm text-blue-700 font-semibold">
+            <span>B2B Bayi İskontosu (%{dealerFinancial?.discountRate})</span>
+            <span>- {formatCurrency(b2bDiscountAmount)}</span>
+          </div>
+        )}
+
         {/* Kupon İndirimi */}
-        {discountAmount > 0 && (
+        {couponDiscountAmount > 0 && (
           <div className="flex items-center justify-between text-sm text-emerald-600 font-semibold">
             <span>Kupon İndirimi ({couponResult?.code})</span>
-            <span>- {formatCurrency(discountAmount)}</span>
+            <span>- {formatCurrency(couponDiscountAmount)}</span>
           </div>
         )}
 
@@ -184,7 +224,7 @@ export function OrderSummary({
             <p className="text-[11px] text-gray-400">Tahsilat + Provizyon Blokajı</p>
           </div>
           <div className="text-right">
-            {discountAmount > 0 && (
+            {totalDiscounts > 0 && (
               <span className="block text-xs line-through text-gray-400 font-medium">
                 {formatCurrency(summary.grandTotal)}
               </span>

@@ -35,6 +35,7 @@
     "test:warehouse-stock": "tsx scripts/test-warehouse-stock.ts",
     "test:b2b-financials": "tsx scripts/test-b2b-financials.ts",
     "test:rental-conflict": "tsx scripts/test-rental-conflict.ts",
+    "test:role-ui": "tsx scripts/test-role-ui-visibility.ts",
     "test:master": "tsx scripts/master-e2e-integration-suite.ts",
     "test:all": "tsx scripts/master-e2e-integration-suite.ts"
   },

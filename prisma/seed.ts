@@ -195,6 +195,52 @@ async function main() {
     },
   });
 
+  // ─────────────────────────────────────────────
+  // 6. İndirim Kuponları (Coupons)
+  // ─────────────────────────────────────────────
+  const coupons = [
+    {
+      code: "INDIRIM20",
+      discountType: "PERCENTAGE" as const,
+      discountValue: 20,
+      minBasketAmount: 0,
+      isActive: true,
+      expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000 * 2),
+    },
+    {
+      code: "HOSGELDIN",
+      discountType: "FIXED" as const,
+      discountValue: 250,
+      minBasketAmount: 500,
+      isActive: true,
+      expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000 * 2),
+    },
+    {
+      code: "FIRSAT50",
+      discountType: "PERCENTAGE" as const,
+      discountValue: 50,
+      minBasketAmount: 0,
+      isActive: true,
+      expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000 * 2),
+    },
+    {
+      code: "SUPER100",
+      discountType: "FIXED" as const,
+      discountValue: 100,
+      minBasketAmount: 0,
+      isActive: true,
+      expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000 * 2),
+    },
+  ];
+
+  for (const c of coupons) {
+    await prisma.coupon.upsert({
+      where: { code: c.code },
+      create: c,
+      update: c,
+    });
+  }
+
   console.log("✅ Seed tamamlandı:", { laptop: laptop.id, kamera: kamera.id, cadir: cadir.id });
 }
 

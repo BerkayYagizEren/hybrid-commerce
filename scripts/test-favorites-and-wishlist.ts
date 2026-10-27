@@ -179,14 +179,26 @@ async function runFavoritesAndWishlistTests() {
     const cardContent = fs.readFileSync(cardPath, "utf-8");
     assert(cardContent.includes("FavoriteButton"), "ProductCard üzerinde kalp butonu (FavoriteButton) mevcut");
     assert(cardContent.includes("relative aspect-square") || cardContent.includes("relative"), "Ürün görsel alanı relative konteynıra sahip");
-    assert(cardContent.includes("top-3 right-3") || cardContent.includes("bottom-3 right-3"), "FavoriteButton görsel üzerinde absolute top-3 right-3 / bottom-3 right-3 konumuna sahip");
+    assert(cardContent.includes("bottom-3 right-3"), "FavoriteButton görsel üzerinde absolute bottom-3 right-3 konumuna sabitlendi");
+    assert(cardContent.includes("bg-white/90") && cardContent.includes("hover:bg-white") && cardContent.includes("p-2") && cardContent.includes("rounded-full") && cardContent.includes("shadow-md"), "ProductCard üzerinde FavoriteButton istenen tam sınıflarla konumlandırıldı");
+
+    const reexportCardPath = path.join(process.cwd(), "src/components/ProductCard.tsx");
+    assert(fs.existsSync(reexportCardPath), "src/components/ProductCard.tsx mevcut");
+    const reexportContent = fs.readFileSync(reexportCardPath, "utf-8");
+    assert(reexportContent.includes("FavoriteButton"), "src/components/ProductCard.tsx üzerinde FavoriteButton mevcut");
+    assert(reexportContent.includes("bottom-3 right-3"), "src/components/ProductCard.tsx üzerinde bottom-3 right-3 konumlandırması mevcut");
 
     const buttonContent = fs.readFileSync(buttonPath, "utf-8");
-    assert(buttonContent.includes("bg-white/80") && buttonContent.includes("hover:bg-white"), "FavoriteButton yarı saydam beyaz ve hover arkaplanına sahip (bg-white/80 hover:bg-white)");
+    assert(buttonContent.includes("bg-white/90") && buttonContent.includes("hover:bg-white"), "FavoriteButton yarı saydam beyaz ve hover arkaplanına sahip (bg-white/90 hover:bg-white)");
     assert(buttonContent.includes("rounded-full") && buttonContent.includes("p-2") && buttonContent.includes("backdrop-blur-sm"), "FavoriteButton dairesel ve backdrop-blur-sm filtreye sahip");
     assert(buttonContent.includes("fill-red-500") && buttonContent.includes("text-red-500"), "Favorideyken kalbin içi ve çizgisi kırmızı (fill-red-500 text-red-500)");
     assert(buttonContent.includes("text-gray-600"), "Favoride değilken gri çizgi kalp (text-gray-600) aktif");
     assert(buttonContent.includes("e.stopPropagation()") && buttonContent.includes("e.preventDefault()"), "Kalbe tıklandığında kart yönlendirmesini önleyen e.stopPropagation() ve e.preventDefault() kontrolleri mevcut");
+
+    const contextPath = path.join(process.cwd(), "src/features/favorites/context/FavoritesContext.tsx");
+    const contextContent = fs.readFileSync(contextPath, "utf-8");
+    assert(contextContent.includes("hybrid_favorites_cache") || contextContent.includes("hybrid_favorites"), "FavoritesContext anlık yerel önbelleğe (localStorage) sahip");
+    assert(contextContent.includes("setFavoriteIds(nextIds)"), "FavoritesContext anlık optimistic UI state güncellemesine sahip");
 
     const detailContent = fs.readFileSync(detailPath, "utf-8");
     assert(detailContent.includes("FavoriteButton"), "ProductDetail detay sayfasında kalp butonu mevcut");

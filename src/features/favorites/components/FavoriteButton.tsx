@@ -40,7 +40,7 @@ export function FavoriteButton({
       onClick={handleClick}
       aria-label={favorite ? "Favorilerden Çıkar" : "Favorilere Ekle"}
       title={favorite ? "Favorilerden Çıkar" : "Favorilere Ekle"}
-      className={`group/fav relative flex items-center justify-center rounded-full bg-white/80 hover:bg-white shadow-md p-2 backdrop-blur-sm transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer border border-gray-100/80 ${
+      className={`group/fav relative flex items-center justify-center rounded-full bg-white/90 hover:bg-white shadow-md p-2 backdrop-blur-sm transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer border border-gray-100/80 ${
         favorite
           ? "fill-red-500 text-red-500"
           : "text-gray-600 hover:text-red-500"

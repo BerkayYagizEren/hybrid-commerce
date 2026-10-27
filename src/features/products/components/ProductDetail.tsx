@@ -137,6 +137,13 @@ export function ProductDetail({ product }: ProductDetailProps) {
               </div>
             </>
           )}
+
+          {/* Görsel Üzerinde Favori Kalp Butonu */}
+          <FavoriteButton
+            productId={product.id}
+            size="md"
+            className="absolute top-3.5 right-3.5 z-10 bg-white/90 hover:bg-white p-2.5 rounded-full shadow-md backdrop-blur-sm transition-all"
+          />
         </div>
 
         {/* Thumbnail Galerisi (Birden fazla resim varsa) */}
@@ -173,8 +180,15 @@ export function ProductDetail({ product }: ProductDetailProps) {
               : "Satılık & Kiralık"}
           </Badge>
 
-          {/* Favori Kalp Butonu */}
-          <FavoriteButton productId={product.id} size="md" />
+          {/* Başlık Yanında Şık Favori Kalp Butonu */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 font-medium hidden sm:inline">Favorilere Ekle</span>
+            <FavoriteButton
+              productId={product.id}
+              size="md"
+              className="bg-white/90 hover:bg-white p-2 rounded-full shadow-md backdrop-blur-sm transition-all"
+            />
+          </div>
         </div>
 
         <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">

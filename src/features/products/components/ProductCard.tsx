@@ -101,29 +101,19 @@ export function ProductCard({
           </Badge>
         </div>
 
-        {/* Favori Kalp Butonu (Görsel üzerinde sağ üst veya sağ alt konumlandırma) */}
-        <FavoriteButton
-          productId={product.id}
-          className={`z-10 ${
-            heartPosition === "bottom-right"
-              ? "absolute bottom-3 right-3"
-              : "absolute top-3 right-3"
-          }`}
-        />
-
         {/* Çoklu Görsel İndikatörü */}
         {product.images && product.images.length > 1 && (
-          <div
-            className={`absolute z-10 flex items-center gap-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs shadow-xs ${
-              heartPosition === "bottom-right"
-                ? "bottom-3 left-3"
-                : "bottom-3 right-3"
-            }`}
-          >
+          <div className="absolute bottom-3 left-3 z-10 flex items-center gap-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs shadow-xs">
             <span>📷</span>
             <span>{product.images.length}</span>
           </div>
         )}
+
+        {/* Favori Kalp Butonu (Görselin Sağ Alt Köşesine Sabitlendi) */}
+        <FavoriteButton
+          productId={product.id}
+          className="absolute bottom-3 right-3 z-10 bg-white/90 hover:bg-white p-2 rounded-full shadow-md backdrop-blur-sm transition-all"
+        />
       </div>
 
       {/* ─────────────────────────────────────────────────────────────
